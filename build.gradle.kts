@@ -142,8 +142,8 @@ subprojects {
 
                     pom {
                         name.set("${project.group}:${project.name}")
-                        description.set("https://gitlab.fix.ru/jfix/${rootProject.name}")
-                        url.set("https://gitlab.fix.ru/jfix/${rootProject.name}")
+                        description.set("https://github.com/ru-fix/")
+                        url.set("https://github.com/ru-fix/${rootProject.name}")
                         licenses {
                             license {
                                 name.set("The Apache License, Version 2.0")
@@ -154,13 +154,13 @@ subprojects {
                             developer {
                                 id.set("JFix Team")
                                 name.set("JFix Team")
-                                url.set("https://gitlab.fix.ru/jfix/")
+                                url.set("https://github.com/ru-fix/")
                             }
                         }
                         scm {
-                            url.set("https://gitlab.fix.ru/jfix/${rootProject.name}")
-                            connection.set("https://gitlab.fix.ru/jfix/${rootProject.name}.git")
-                            developerConnection.set("https://gitlab.fix.ru/jfix/${rootProject.name}.git")
+                            url.set("https://github.com/ru-fix/${rootProject.name}")
+                            connection.set("https://github.com/ru-fix/${rootProject.name}.git")
+                            developerConnection.set("https://github.com/ru-fix/${rootProject.name}.git")
                         }
                     }
                 }

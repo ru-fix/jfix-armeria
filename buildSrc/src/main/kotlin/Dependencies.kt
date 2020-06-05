@@ -14,6 +14,13 @@ object Vers {
     const val aggregating_profiler = "1.6.5"
     const val dynamic_property = "2.0.5"
     const val jfix_stdlib = "3.0.2"
+
+    // Armeria
+    const val armeria = "0.99.6"
+
+    // Testing
+    const val junit = "5.6.2"
+    const val kotest = "4.0.6"
 }
 
 object Libs {
@@ -31,10 +38,24 @@ object Libs {
     const val kotlin_jdk8 = "org.jetbrains.kotlin:kotlin-stdlib-jdk8:${Vers.kotlin}"
     const val kotlin_reflect = "org.jetbrains.kotlin:kotlin-reflect:${Vers.kotlin}"
 
+    // JFix components
+    const val dynamic_property_api = "ru.fix:dynamic-property-api:${Vers.dynamic_property}"
+
+    // Armeria
+    const val armeria = "com.linecorp.armeria:armeria:${Vers.armeria}"
+
+    // Testing
+    const val junit_api = "org.junit.jupiter:junit-jupiter-api:${Vers.junit}"
+    const val junit_params = "org.junit.jupiter:junit-jupiter-params:${Vers.junit}"
+    const val junit_engine = "org.junit.jupiter:junit-jupiter-engine:${Vers.junit}"
+    const val armeria_testing_junit = "com.linecorp.armeria:armeria-testing-junit:${Vers.armeria}"
+    const val kotest_runner_junit5_jvm = "io.kotest:kotest-runner-junit5-jvm:${Vers.kotest}"
+    const val kotest_assertions_core_jvm = "io.kotest:kotest-assertions-core-jvm:${Vers.kotest}"
 }
 
 enum class Projs {
 
-    ;
+    `jfix-armeria-dynamic-request-options`;
+
     val dependency get(): String = ":$name"
 }
