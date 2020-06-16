@@ -18,9 +18,14 @@ object Vers {
     // Armeria
     const val armeria = "0.99.6"
 
+    // Logging
+    const val log4j = "2.12.0"
+    const val log4j_kotlin = "1.0.0"
+
     // Testing
     const val junit = "5.6.2"
-    const val kotest = "4.0.6"
+    const val kotest = "4.1.1"
+    const val mockk = "1.10.0"
 }
 
 object Libs {
@@ -40,6 +45,12 @@ object Libs {
 
     // JFix components
     const val dynamic_property_api = "ru.fix:dynamic-property-api:${Vers.dynamic_property}"
+    const val aggregating_profiler = "ru.fix:aggregating-profiler:${Vers.aggregating_profiler}"
+
+    // Logging
+    const val log4j_kotlin = "org.apache.logging.log4j:log4j-api-kotlin:${Vers.log4j_kotlin}"
+    const val log4j_core = "org.apache.logging.log4j:log4j-core:${Vers.log4j}"
+    const val slf4j_over_log4j = "org.apache.logging.log4j:log4j-slf4j-impl:${Vers.log4j}"
 
     // Armeria
     const val armeria = "com.linecorp.armeria:armeria:${Vers.armeria}"
@@ -51,11 +62,14 @@ object Libs {
     const val armeria_testing_junit = "com.linecorp.armeria:armeria-testing-junit:${Vers.armeria}"
     const val kotest_runner_junit5_jvm = "io.kotest:kotest-runner-junit5-jvm:${Vers.kotest}"
     const val kotest_assertions_core_jvm = "io.kotest:kotest-assertions-core-jvm:${Vers.kotest}"
+    const val mockk = "io.mockk:mockk:${Vers.mockk}"
 }
 
 enum class Projs {
 
-    `jfix-armeria-dynamic-request-options`;
+    `commons`,
+    `dynamic-request-options`,
+    `aggregating-profiler`;
 
-    val dependency get(): String = ":$name"
+    val dependency get(): String = ":jfix-armeria-$name"
 }
