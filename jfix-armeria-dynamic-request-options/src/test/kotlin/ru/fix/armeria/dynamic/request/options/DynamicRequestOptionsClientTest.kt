@@ -4,7 +4,7 @@ import com.linecorp.armeria.client.ResponseTimeoutException
 import com.linecorp.armeria.client.WebClient
 import com.linecorp.armeria.common.HttpResponse
 import com.linecorp.armeria.common.HttpStatus
-import com.linecorp.armeria.testing.junit.server.mock.MockWebServerExtension
+import com.linecorp.armeria.testing.junit5.server.mock.MockWebServerExtension
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe

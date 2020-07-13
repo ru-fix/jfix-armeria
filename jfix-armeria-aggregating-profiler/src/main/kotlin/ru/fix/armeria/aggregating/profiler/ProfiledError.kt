@@ -27,8 +27,10 @@ internal sealed class ProfiledError(
     object ConnectRefused : ProfiledError(latencyMetricRequired = true, typeMetricName = "connect_refused")
     object ConnectTimeout : ProfiledError(typeMetricName = "connect_timeout")
     object NoAvailableEndpoint : ProfiledError(typeMetricName = "no_available_endpoint")
-    object RequestClosedSession
-        : ProfiledError(latencyMetricRequired = true, typeMetricName = "request_closed_session")
+    object RequestClosedSession: ProfiledError(
+        latencyMetricRequired = true,
+        typeMetricName = "request_closed_session"
+    )
 
     class Http2ErrorOccurred(http2Error: Http2Error) : ProfiledError(
         typeMetricName = "http2_error",
@@ -52,7 +54,10 @@ internal sealed class ProfiledError(
 
             class InRequest(cause: Throwable) : WithCause(typeMetricName = "unrecognized_request_error", cause = cause)
 
-            class InResponse(cause: Throwable) : WithCause(typeMetricName = "unrecognized_response_error", cause = cause)
+            class InResponse(cause: Throwable) : WithCause(
+                typeMetricName = "unrecognized_response_error",
+                cause = cause
+            )
         }
 
     }

@@ -5,7 +5,7 @@ import com.linecorp.armeria.client.ConnectionPoolListener
 import com.linecorp.armeria.client.WebClient
 import com.linecorp.armeria.common.HttpResponse
 import com.linecorp.armeria.common.HttpStatus
-import com.linecorp.armeria.testing.junit.server.mock.MockWebServerExtension
+import com.linecorp.armeria.testing.junit5.server.mock.MockWebServerExtension
 import io.kotest.assertions.assertSoftly
 import io.kotest.matchers.longs.shouldBeGreaterThanOrEqual
 import io.kotest.matchers.maps.shouldContainExactly
@@ -32,7 +32,7 @@ internal class ProfiledConnectionPoolListenerTest {
     }
 
     @Test
-    fun `WHEN connection created and destryed THEN its lifetime profiled AND connections count updated`() {
+    fun `WHEN connection created and destroyed THEN its lifetime profiled AND connections count updated`() {
         var startTimestamp: Long? = null
         var stopTimestamp: Long? = null
         val connectionCountIndicatorSlot = slot<IndicationProvider>()

@@ -32,13 +32,13 @@ class ProfiledHttpClient private constructor(delegate: HttpClient, private val p
             profileOnConnectionEstablished(req, log)
         }
 
-        // NOT - if retries enabled (Retrying decorator placed after this on),
+        // NOTE - if retries enabled (Retrying decorator placed after this on),
         // then it is called after all attempts (log.children() contains all attempts)
         ctx.log().whenComplete().thenAccept { log ->
             profileOnRequestCompleted(req, log)
         }
 
-        return delegate<Client<HttpRequest, HttpResponse>>().execute(ctx, req)
+        return unwrap().execute(ctx, req)
     }
 
     private fun startProfiledCallBeforeConnectionEstablished(req: HttpRequest, ctx: ClientRequestContext) {
@@ -145,10 +145,7 @@ class ProfiledHttpClient private constructor(delegate: HttpClient, private val p
         }
 
         log.connectionTimings()?.let {
-            logger.debug {
-                """Request log = $log
-                    |connections timings = $it""".trimMargin()
-            }
+            logger.debug { "Request log = $log; connections timings = $it" }
         }
     }
 

@@ -12,11 +12,11 @@ object Vers {
 
     // JFix components
     const val aggregating_profiler = "1.6.5"
-    const val dynamic_property = "2.0.5"
-    const val jfix_stdlib = "3.0.2"
+    const val dynamic_property = "2.0.7"
+    const val jfix_stdlib = "3.0.8"
 
     // Armeria
-    const val armeria = "0.99.6"
+    const val armeria = "0.99.8"
 
     // Logging
     const val log4j = "2.12.0"
@@ -41,11 +41,11 @@ object Libs {
     // Kotlin
     const val kotlin_stdlib = "org.jetbrains.kotlin:kotlin-stdlib:${Vers.kotlin}"
     const val kotlin_jdk8 = "org.jetbrains.kotlin:kotlin-stdlib-jdk8:${Vers.kotlin}"
-    const val kotlin_reflect = "org.jetbrains.kotlin:kotlin-reflect:${Vers.kotlin}"
 
     // JFix components
     const val dynamic_property_api = "ru.fix:dynamic-property-api:${Vers.dynamic_property}"
     const val aggregating_profiler = "ru.fix:aggregating-profiler:${Vers.aggregating_profiler}"
+    const val jfix_stdlib_socket = "ru.fix:jfix-stdlib-socket:${Vers.jfix_stdlib}"
 
     // Logging
     const val log4j_kotlin = "org.apache.logging.log4j:log4j-api-kotlin:${Vers.log4j_kotlin}"
@@ -59,7 +59,7 @@ object Libs {
     const val junit_api = "org.junit.jupiter:junit-jupiter-api:${Vers.junit}"
     const val junit_params = "org.junit.jupiter:junit-jupiter-params:${Vers.junit}"
     const val junit_engine = "org.junit.jupiter:junit-jupiter-engine:${Vers.junit}"
-    const val armeria_testing_junit = "com.linecorp.armeria:armeria-testing-junit:${Vers.armeria}"
+    const val armeria_testing_junit = "com.linecorp.armeria:armeria-junit5:${Vers.armeria}"
     const val kotest_runner_junit5_jvm = "io.kotest:kotest-runner-junit5-jvm:${Vers.kotest}"
     const val kotest_assertions_core_jvm = "io.kotest:kotest-assertions-core-jvm:${Vers.kotest}"
     const val mockk = "io.mockk:mockk:${Vers.mockk}"

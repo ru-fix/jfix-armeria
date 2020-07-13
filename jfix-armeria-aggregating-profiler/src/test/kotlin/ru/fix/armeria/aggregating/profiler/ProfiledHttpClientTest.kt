@@ -10,8 +10,8 @@ import com.linecorp.armeria.client.retry.RetryRule
 import com.linecorp.armeria.client.retry.RetryingClient
 import com.linecorp.armeria.common.*
 import com.linecorp.armeria.server.ServerBuilder
-import com.linecorp.armeria.testing.junit.server.ServerExtension
-import com.linecorp.armeria.testing.junit.server.mock.MockWebServerExtension
+import com.linecorp.armeria.testing.junit5.server.ServerExtension
+import com.linecorp.armeria.testing.junit5.server.mock.MockWebServerExtension
 import io.kotest.assertions.assertSoftly
 import io.kotest.inspectors.forAll
 import io.kotest.matchers.collections.shouldHaveSize
@@ -50,168 +50,14 @@ import ru.fix.armeria.aggregating.profiler.ProfilerTestUtils.LOCAL_HOST
 import ru.fix.armeria.aggregating.profiler.ProfilerTestUtils.localhostHttpUri
 import ru.fix.armeria.aggregating.profiler.ProfilerTestUtils.localhostUri
 import ru.fix.armeria.commons.unwrapUnprocessedExceptionIfNecessary
+import ru.fix.stdlib.socket.SocketChecker
 import java.net.ConnectException
 import java.net.URI
 import java.time.Duration
 import java.util.concurrent.TimeUnit
 import java.util.stream.Stream
 
-class ProfiledHttpClientTest {
-
-    companion object {
-
-        const val PATH_DELAYED_OK = "/ok-delayed/{delay}"
-
-        const val NON_EXISTING_SERVER_PORT = 1113
-
-        @JvmField
-        @RegisterExtension
-        val mockServer = object : MockWebServerExtension() {
-            override fun configureServer(sb: ServerBuilder) {
-                sb.service(PATH_DELAYED_OK) { ctx, _ ->
-                    val delayMs = ctx.pathParam("delay")!!.toLong()
-                    HttpResponse.delayed(HttpResponse.of(HttpStatus.OK), Duration.ofMillis(delayMs))
-                }
-            }
-
-        }
-
-        object MockVerifyUtils {
-            class ProfilerCapturer {
-                val connectSlot = slot<Identity>()
-                val connectedSlot = slot<Identity>()
-                val successSlot = slot<Identity>()
-                val errorSlot = slot<Identity>()
-            }
-
-            private fun Profiler.mockCallMatchingName(name: String) =
-                spyk(NoopProfiler.NoopProfiledCall()).also { call ->
-                    every {
-                        profiledCall(match<Identity> {
-                            it.name == name
-                        })
-                    } returns call
-                }
-
-            fun Profiler.mockHttpConnectCall(): ProfiledCall = mockCallMatchingName(Metrics.HTTP_CONNECT)
-            fun Profiler.mockHttpConnectedCall(): ProfiledCall = mockCallMatchingName(Metrics.HTTP_CONNECTED)
-            fun Profiler.mockHttpSuccessCall(): ProfiledCall = mockCallMatchingName(Metrics.HTTP_SUCCESS)
-            fun Profiler.mockHttpErrorCall(): ProfiledCall = mockCallMatchingName(Metrics.HTTP_ERROR)
-
-
-            class ProfilerVerifyContext private constructor(
-                val verificationScope: MockKVerificationScope,
-                val mockedProfiler: Profiler,
-                val mockedCall: ProfiledCall
-            ) {
-                companion object {
-                    fun MockKVerificationScope.withVerifyScope(profilerPair: Pair<Profiler, ProfiledCall>): ProfilerVerifyContext =
-                        ProfilerVerifyContext(this, profilerPair.first, profilerPair.second)
-
-                    fun MockKVerificationScope.withVerifyScope(
-                        profilerPair: Pair<Profiler, ProfiledCall>,
-                        block: ProfilerVerifyContext.() -> Unit
-                    ) {
-                        withVerifyScope(profilerPair).block()
-                    }
-                }
-
-            }
-
-            infix fun ProfilerVerifyContext.verifyConnect(capture: () -> Identity) {
-                mockedProfiler.profiledCall(capture())
-                mockedCall.start()
-                mockedCall.stop()
-            }
-
-            infix fun ProfilerVerifyContext.verifyConnected(capture: () -> Identity) {
-                mockedProfiler.profiledCall(capture())
-                mockedCall.call(verificationScope.any<Long>())
-            }
-
-            infix fun ProfilerVerifyContext.verifySuccess(capture: () -> Identity) {
-                mockedProfiler.profiledCall(capture())
-                mockedCall.call(verificationScope.any<Long>())
-            }
-
-            private fun ProfilerVerifyContext.verifyError(latencyProfiled: Boolean, capture: () -> Identity) {
-                mockedProfiler.profiledCall(capture())
-                mockedCall.run {
-                    if (latencyProfiled) {
-                        call(verificationScope.any<Long>())
-                    } else {
-                        call()
-                    }
-                }
-            }
-
-            infix fun ProfilerVerifyContext.verifyErrorWithProfiledLatency(capture: () -> Identity) {
-                verifyError(true, capture)
-            }
-
-            infix fun ProfilerVerifyContext.verifyErrorWithoutLatency(capture: () -> Identity) {
-                verifyError(false, capture)
-            }
-        }
-
-        object AssertUtils {
-            fun Identity.assertConnectIdentity(
-                path: String = "/",
-                method: String = "GET",
-                protocol: String = "http",
-                isProtoMultiplex: Boolean = false
-            ) {
-                name shouldBe Metrics.HTTP_CONNECT
-                tags shouldContainExactly mapOf(
-                    MetricTags.PATH to path,
-                    MetricTags.METHOD to method,
-                    MetricTags.PROTOCOL to protocol,
-                    MetricTags.IS_MULTIPLEX_PROTOCOL to isProtoMultiplex.toString()
-                )
-            }
-        }
-
-    }
-
-    object ProtocolSpecificTest {
-
-        data class CaseArguments(
-            val clientProtocol: String,
-            val connectMetricTagProtocol: String,
-            val connectMetricTagIsMultiplex: Boolean,
-            val otherMetricsTagProtocol: String,
-            val otherMetricsTagIsMultiplex: Boolean
-        ) : Arguments {
-            override fun get(): Array<Any> = arrayOf(this)
-        }
-
-        class CaseArgumentsProvider : ArgumentsProvider {
-            override fun provideArguments(context: ExtensionContext?): Stream<out Arguments> = Stream.of(
-                CaseArguments(
-                    clientProtocol = "http",
-                    connectMetricTagProtocol = "http",
-                    connectMetricTagIsMultiplex = false,
-                    otherMetricsTagProtocol = "h2c",
-                    otherMetricsTagIsMultiplex = true
-                ),
-                CaseArguments(
-                    clientProtocol = "h1c",
-                    connectMetricTagProtocol = "h1c",
-                    connectMetricTagIsMultiplex = false,
-                    otherMetricsTagProtocol = "h1c",
-                    otherMetricsTagIsMultiplex = false
-                ),
-                CaseArguments(
-                    clientProtocol = "h2c",
-                    connectMetricTagProtocol = "h2c",
-                    connectMetricTagIsMultiplex = true,
-                    otherMetricsTagProtocol = "h2c",
-                    otherMetricsTagIsMultiplex = true
-                )
-            )
-
-        }
-    }
+internal class ProfiledHttpClientTest {
 
     @ParameterizedTest
     @ArgumentsSource(ProtocolSpecificTest.CaseArgumentsProvider::class)
@@ -249,7 +95,7 @@ class ProfiledHttpClientTest {
 
         client.get(path).aggregate().join()
 
-        val profilerCapturer = MockVerifyUtils.ProfilerCapturer()
+        val profilerCapturer = MockVerifyUtils.ProfilerInvader()
         verifySequence {
             //profile connect without chosen endpoint
             withVerifyScope(mockedProfiler to mockedConnectCall) verifyConnect {
@@ -282,77 +128,6 @@ class ProfiledHttpClientTest {
         }
     }
 
-    internal object ErrorProfilingTest {
-        const val TEST_PATH = "/test-error-profiling"
-
-        object Utils {
-
-            fun delayedResponsePartsMock(
-                targetPath: String,
-                serverRequestTimeout: Duration,
-                fullResponseDelay: Duration,
-                responseStatus: HttpStatus,
-                numberOfResponseParts: Int
-            ): ServerExtension {
-                return object : ServerExtension() {
-                    override fun configure(sb: ServerBuilder) {
-                        sb.requestTimeout(serverRequestTimeout)
-
-                        sb.service(targetPath) { ctx, _ ->
-                            HttpResponse.streaming().also { response ->
-                                val responseStatusHeader = ResponseHeaders.of(responseStatus)
-                                response.write(responseStatusHeader)
-
-                                val lastResponsePartIndex = numberOfResponseParts - 1
-                                for (responsePartIndex in 0..numberOfResponseParts) {
-                                    ctx.eventLoop().schedule(
-                                        {
-                                            response.write(
-                                                HttpData.ofAscii(responsePartIndex.toString())
-                                            )
-                                            if (responsePartIndex == lastResponsePartIndex) {
-                                                response.close()
-                                            }
-                                        },
-                                        fullResponseDelay.toMillis() * responsePartIndex / numberOfResponseParts,
-                                        TimeUnit.MILLISECONDS
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                }
-            }
-
-        }
-
-        data class ProtocolSpecificCase(
-            val protocol: SessionProtocol,
-            val caseName: String,
-            val profiledErrorType: String
-        )
-
-        data class Case(
-            val testCaseName: String,
-            val mockServerGenerator: () -> MockServer,
-            val expectedErrorMetricTagsByMockUriGenerator: (URI) -> List<MetricTag>,
-            val latencyMetricRequired: Boolean = false,
-            val clientBuilderCustomizer: WebClientBuilder.() -> WebClientBuilder = { this }
-        ) {
-
-            class MockServer(
-                val mockUri: URI,
-                private val stop: () -> Unit
-            ) : AutoCloseable {
-                override fun close() {
-                    stop()
-                }
-            }
-
-        }
-
-    }
 
     @Nested
     inner class `Http (and not only) errors` {
@@ -430,7 +205,7 @@ class ProfiledHttpClientTest {
                     testCaseName = "Connection refused",
                     mockServerGenerator = {
                         //non-existing address
-                        ErrorProfilingTest.Case.MockServer(URI.create("http://${ProfilerTestUtils.LOCAL_HOST}:$NON_EXISTING_SERVER_PORT")) {}
+                        ErrorProfilingTest.Case.MockServer(URI.create("http://$LOCAL_HOST:${getAvailableRandomPort()}")) {}
                     },
                     expectedErrorMetricTagsByMockUriGenerator = {
                         listOf(
@@ -576,7 +351,7 @@ class ProfiledHttpClientTest {
                 }
             }
             val client = WebClient
-                .builder(SessionProtocol.HTTP, Endpoint.of(LOCAL_HOST, NON_EXISTING_SERVER_PORT))
+                .builder(SessionProtocol.HTTP, Endpoint.of(LOCAL_HOST, getAvailableRandomPort()))
                 .decorator(ProfiledHttpClient.newDecorator(mockedProfiler))
                 .build()
 
@@ -646,14 +421,14 @@ class ProfiledHttpClientTest {
                 HttpResponse.delayed(HttpResponse.of(HttpStatus.OK), Duration.ofMillis(200))
             )
             val retryRule = RetryRule.onStatus(HttpStatus.SERVICE_UNAVAILABLE)
-                .orElse(RetryRule.onException { it.unwrapUnprocessedExceptionIfNecessary() is ConnectException })
+                .orElse(RetryRule.onException { _, t -> t.unwrapUnprocessedExceptionIfNecessary() is ConnectException })
             val client = WebClient
                 .builder(
                     SessionProtocol.HTTP,
                     EndpointGroup.of(
                         EndpointSelectionStrategy.roundRobin(),
                         Endpoint.of(LOCAL_HOST, mockServer.httpPort()),
-                        Endpoint.of(LOCAL_HOST, NON_EXISTING_SERVER_PORT)
+                        Endpoint.of(LOCAL_HOST, getAvailableRandomPort())
                     )
                 )
                 .decorator(ProfiledHttpClient.newDecorator(mockedProfiler))
@@ -772,14 +547,14 @@ class ProfiledHttpClientTest {
                     HttpResponse.delayed(HttpResponse.of(HttpStatus.OK), Duration.ofMillis(lastRequestDelayMillis))
                 )
                 val retryRule = RetryRule.onStatus(HttpStatus.SERVICE_UNAVAILABLE)
-                    .orElse(RetryRule.onException { it.unwrapUnprocessedExceptionIfNecessary() is ConnectException })
+                    .orElse(RetryRule.onException { _, t -> t.unwrapUnprocessedExceptionIfNecessary() is ConnectException })
                 val client = WebClient
                     .builder(
                         SessionProtocol.HTTP,
                         EndpointGroup.of(
                             EndpointSelectionStrategy.roundRobin(),
                             Endpoint.of(LOCAL_HOST, mockServer.httpPort()),
-                            Endpoint.of(LOCAL_HOST, NON_EXISTING_SERVER_PORT),
+                            Endpoint.of(LOCAL_HOST, getAvailableRandomPort()),
                             Endpoint.of(LOCAL_HOST, mockServer2.httpPort())
                         )
                     )
@@ -884,14 +659,14 @@ class ProfiledHttpClientTest {
                     )
                 )
                 val retryRule = RetryRule.onStatus(HttpStatus.SERVICE_UNAVAILABLE)
-                    .orElse(RetryRule.onException { it.unwrapUnprocessedExceptionIfNecessary() is ConnectException })
+                    .orElse(RetryRule.onException { _, t -> t.unwrapUnprocessedExceptionIfNecessary() is ConnectException })
                 val client = WebClient
                     .builder(
                         SessionProtocol.HTTP,
                         EndpointGroup.of(
                             EndpointSelectionStrategy.roundRobin(),
                             Endpoint.of(LOCAL_HOST, mockServer.httpPort()),
-                            Endpoint.of(LOCAL_HOST, NON_EXISTING_SERVER_PORT),
+                            Endpoint.of(LOCAL_HOST, getAvailableRandomPort()),
                             Endpoint.of(LOCAL_HOST, mockServer2.httpPort())
                         )
                     )
@@ -984,5 +759,213 @@ class ProfiledHttpClientTest {
 //    fun `WHEN connect timeouted THEN error profiled`() {
 //    }
 
+    companion object {
+
+        const val PATH_DELAYED_OK = "/ok-delayed/{delay}"
+
+        fun getAvailableRandomPort() = SocketChecker.getAvailableRandomPort()
+
+        @JvmField
+        @RegisterExtension
+        val mockServer = object : MockWebServerExtension() {
+            override fun configureServer(sb: ServerBuilder) {
+                sb.service(PATH_DELAYED_OK) { ctx, _ ->
+                    val delayMs = ctx.pathParam("delay")!!.toLong()
+                    HttpResponse.delayed(HttpResponse.of(HttpStatus.OK), Duration.ofMillis(delayMs))
+                }
+            }
+
+        }
+
+        object MockVerifyUtils {
+            class ProfilerInvader {
+                val connectSlot = slot<Identity>()
+                val connectedSlot = slot<Identity>()
+                val successSlot = slot<Identity>()
+            }
+
+            private fun Profiler.mockCallMatchingName(name: String) =
+                spyk(NoopProfiler.NoopProfiledCall()).also { call ->
+                    every {
+                        profiledCall(match<Identity> {
+                            it.name == name
+                        })
+                    } returns call
+                }
+
+            fun Profiler.mockHttpConnectCall(): ProfiledCall = mockCallMatchingName(Metrics.HTTP_CONNECT)
+            fun Profiler.mockHttpConnectedCall(): ProfiledCall = mockCallMatchingName(Metrics.HTTP_CONNECTED)
+            fun Profiler.mockHttpSuccessCall(): ProfiledCall = mockCallMatchingName(Metrics.HTTP_SUCCESS)
+            fun Profiler.mockHttpErrorCall(): ProfiledCall = mockCallMatchingName(Metrics.HTTP_ERROR)
+
+
+            class ProfilerVerifyContext private constructor(
+                val verificationScope: MockKVerificationScope,
+                val mockedProfiler: Profiler,
+                val mockedCall: ProfiledCall
+            ) {
+                companion object {
+                    fun MockKVerificationScope.withVerifyScope(profilerPair: Pair<Profiler, ProfiledCall>): ProfilerVerifyContext =
+                        ProfilerVerifyContext(this, profilerPair.first, profilerPair.second)
+
+                    fun MockKVerificationScope.withVerifyScope(
+                        profilerPair: Pair<Profiler, ProfiledCall>,
+                        block: ProfilerVerifyContext.() -> Unit
+                    ) {
+                        withVerifyScope(profilerPair).block()
+                    }
+                }
+
+            }
+
+            infix fun ProfilerVerifyContext.verifyConnect(capture: () -> Identity) {
+                mockedProfiler.profiledCall(capture())
+                mockedCall.start()
+                mockedCall.stop()
+            }
+
+            infix fun ProfilerVerifyContext.verifyConnected(capture: () -> Identity) {
+                mockedProfiler.profiledCall(capture())
+                mockedCall.call(verificationScope.any<Long>())
+            }
+
+            infix fun ProfilerVerifyContext.verifySuccess(capture: () -> Identity) {
+                mockedProfiler.profiledCall(capture())
+                mockedCall.call(verificationScope.any<Long>())
+            }
+
+            private fun ProfilerVerifyContext.verifyError(latencyProfiled: Boolean, capture: () -> Identity) {
+                mockedProfiler.profiledCall(capture())
+                mockedCall.run {
+                    if (latencyProfiled) {
+                        call(verificationScope.any<Long>())
+                    } else {
+                        call()
+                    }
+                }
+            }
+
+            infix fun ProfilerVerifyContext.verifyErrorWithProfiledLatency(capture: () -> Identity) {
+                verifyError(true, capture)
+            }
+
+            infix fun ProfilerVerifyContext.verifyErrorWithoutLatency(capture: () -> Identity) {
+                verifyError(false, capture)
+            }
+        }
+
+    }
+
+    object ProtocolSpecificTest {
+
+        data class CaseArguments(
+            val clientProtocol: String,
+            val connectMetricTagProtocol: String,
+            val connectMetricTagIsMultiplex: Boolean,
+            val otherMetricsTagProtocol: String,
+            val otherMetricsTagIsMultiplex: Boolean
+        ) : Arguments {
+            override fun get(): Array<Any> = arrayOf(this)
+        }
+
+        class CaseArgumentsProvider : ArgumentsProvider {
+            override fun provideArguments(context: ExtensionContext?): Stream<out Arguments> = Stream.of(
+                CaseArguments(
+                    clientProtocol = "http",
+                    connectMetricTagProtocol = "http",
+                    connectMetricTagIsMultiplex = false,
+                    otherMetricsTagProtocol = "h2c",
+                    otherMetricsTagIsMultiplex = true
+                ),
+                CaseArguments(
+                    clientProtocol = "h1c",
+                    connectMetricTagProtocol = "h1c",
+                    connectMetricTagIsMultiplex = false,
+                    otherMetricsTagProtocol = "h1c",
+                    otherMetricsTagIsMultiplex = false
+                ),
+                CaseArguments(
+                    clientProtocol = "h2c",
+                    connectMetricTagProtocol = "h2c",
+                    connectMetricTagIsMultiplex = true,
+                    otherMetricsTagProtocol = "h2c",
+                    otherMetricsTagIsMultiplex = true
+                )
+            )
+
+        }
+    }
+
+    object ErrorProfilingTest {
+        const val TEST_PATH = "/test-error-profiling"
+
+        object Utils {
+
+            fun delayedResponsePartsMock(
+                targetPath: String,
+                serverRequestTimeout: Duration,
+                fullResponseDelay: Duration,
+                responseStatus: HttpStatus,
+                numberOfResponseParts: Int
+            ): ServerExtension {
+                return object : ServerExtension() {
+                    override fun configure(sb: ServerBuilder) {
+                        sb.requestTimeout(serverRequestTimeout)
+
+                        sb.service(targetPath) { ctx, _ ->
+                            HttpResponse.streaming().also { response ->
+                                val responseStatusHeader = ResponseHeaders.of(responseStatus)
+                                response.write(responseStatusHeader)
+
+                                val lastResponsePartIndex = numberOfResponseParts - 1
+                                for (responsePartIndex in 0..numberOfResponseParts) {
+                                    ctx.eventLoop().schedule(
+                                        {
+                                            response.write(
+                                                HttpData.ofAscii(responsePartIndex.toString())
+                                            )
+                                            if (responsePartIndex == lastResponsePartIndex) {
+                                                response.close()
+                                            }
+                                        },
+                                        fullResponseDelay.toMillis() * responsePartIndex / numberOfResponseParts,
+                                        TimeUnit.MILLISECONDS
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                }
+            }
+
+        }
+
+        data class ProtocolSpecificCase(
+            val protocol: SessionProtocol,
+            val caseName: String,
+            val profiledErrorType: String
+        )
+
+        data class Case(
+            val testCaseName: String,
+            val mockServerGenerator: () -> MockServer,
+            val expectedErrorMetricTagsByMockUriGenerator: (URI) -> List<MetricTag>,
+            val latencyMetricRequired: Boolean = false,
+            val clientBuilderCustomizer: WebClientBuilder.() -> WebClientBuilder = { this }
+        ) {
+
+            class MockServer(
+                val mockUri: URI,
+                private val stop: () -> Unit
+            ) : AutoCloseable {
+                override fun close() {
+                    stop()
+                }
+            }
+
+        }
+
+    }
 
 }

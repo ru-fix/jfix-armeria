@@ -29,4 +29,6 @@ dependencies {
     //  Mocking
     testImplementation(Libs.mockk)
     testImplementation(Libs.armeria_testing_junit)
+    //  JFix
+    testImplementation(Libs.jfix_stdlib_socket)
 }
