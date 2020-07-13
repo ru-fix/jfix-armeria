@@ -1,7 +1,7 @@
 package ru.fix.armeria.aggregating.profiler
 
 import com.linecorp.armeria.common.SessionProtocol
-import com.linecorp.armeria.testing.junit5.server.ServerExtension
+import com.linecorp.armeria.testing.junit.server.ServerExtension
 import java.net.URI
 
 object ProfilerTestUtils {

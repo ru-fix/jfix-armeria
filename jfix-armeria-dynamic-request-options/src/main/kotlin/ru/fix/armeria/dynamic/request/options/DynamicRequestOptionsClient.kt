@@ -4,8 +4,6 @@ import com.linecorp.armeria.client.Client
 import com.linecorp.armeria.client.ClientRequestContext
 import com.linecorp.armeria.client.HttpClient
 import com.linecorp.armeria.client.SimpleDecoratingClient
-import com.linecorp.armeria.common.HttpRequest
-import com.linecorp.armeria.common.HttpResponse
 import com.linecorp.armeria.common.Request
 import com.linecorp.armeria.common.Response
 import ru.fix.dynamic.property.api.DynamicProperty
@@ -27,7 +25,7 @@ open class DynamicRequestOptionsClient<RequestT : Request, ResponseT : Response>
     override fun execute(ctx: ClientRequestContext, req: RequestT): ResponseT {
         ctx.setWriteTimeoutMillis(writeTimeoutProperty.get())
         ctx.setResponseTimeoutMillis(readTimeoutProperty.get())
-        return unwrap().execute(ctx, req)
+        return delegate<Client<RequestT, ResponseT>>().execute(ctx, req)
     }
 
     companion object {

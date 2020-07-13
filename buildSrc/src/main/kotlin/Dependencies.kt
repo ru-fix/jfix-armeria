@@ -16,7 +16,7 @@ object Vers {
     const val jfix_stdlib = "3.0.8"
 
     // Armeria
-    const val armeria = "0.99.8"
+    const val armeria = "0.99.6"
 
     // Logging
     const val log4j = "2.12.0"
@@ -59,7 +59,7 @@ object Libs {
     const val junit_api = "org.junit.jupiter:junit-jupiter-api:${Vers.junit}"
     const val junit_params = "org.junit.jupiter:junit-jupiter-params:${Vers.junit}"
     const val junit_engine = "org.junit.jupiter:junit-jupiter-engine:${Vers.junit}"
-    const val armeria_testing_junit = "com.linecorp.armeria:armeria-junit5:${Vers.armeria}"
+    const val armeria_testing_junit = "com.linecorp.armeria:armeria-testing-junit:${Vers.armeria}"
     const val kotest_runner_junit5_jvm = "io.kotest:kotest-runner-junit5-jvm:${Vers.kotest}"
     const val kotest_assertions_core_jvm = "io.kotest:kotest-assertions-core-jvm:${Vers.kotest}"
     const val mockk = "io.mockk:mockk:${Vers.mockk}"

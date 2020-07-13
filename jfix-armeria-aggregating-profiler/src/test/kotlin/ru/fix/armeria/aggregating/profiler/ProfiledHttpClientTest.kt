@@ -10,8 +10,8 @@ import com.linecorp.armeria.client.retry.RetryRule
 import com.linecorp.armeria.client.retry.RetryingClient
 import com.linecorp.armeria.common.*
 import com.linecorp.armeria.server.ServerBuilder
-import com.linecorp.armeria.testing.junit5.server.ServerExtension
-import com.linecorp.armeria.testing.junit5.server.mock.MockWebServerExtension
+import com.linecorp.armeria.testing.junit.server.ServerExtension
+import com.linecorp.armeria.testing.junit.server.mock.MockWebServerExtension
 import io.kotest.assertions.assertSoftly
 import io.kotest.inspectors.forAll
 import io.kotest.matchers.collections.shouldHaveSize
@@ -421,7 +421,7 @@ internal class ProfiledHttpClientTest {
                 HttpResponse.delayed(HttpResponse.of(HttpStatus.OK), Duration.ofMillis(200))
             )
             val retryRule = RetryRule.onStatus(HttpStatus.SERVICE_UNAVAILABLE)
-                .orElse(RetryRule.onException { _, t -> t.unwrapUnprocessedExceptionIfNecessary() is ConnectException })
+                .orElse(RetryRule.onException { it.unwrapUnprocessedExceptionIfNecessary() is ConnectException })
             val client = WebClient
                 .builder(
                     SessionProtocol.HTTP,
@@ -547,7 +547,7 @@ internal class ProfiledHttpClientTest {
                     HttpResponse.delayed(HttpResponse.of(HttpStatus.OK), Duration.ofMillis(lastRequestDelayMillis))
                 )
                 val retryRule = RetryRule.onStatus(HttpStatus.SERVICE_UNAVAILABLE)
-                    .orElse(RetryRule.onException { _, t -> t.unwrapUnprocessedExceptionIfNecessary() is ConnectException })
+                    .orElse(RetryRule.onException { it.unwrapUnprocessedExceptionIfNecessary() is ConnectException })
                 val client = WebClient
                     .builder(
                         SessionProtocol.HTTP,
@@ -659,7 +659,7 @@ internal class ProfiledHttpClientTest {
                     )
                 )
                 val retryRule = RetryRule.onStatus(HttpStatus.SERVICE_UNAVAILABLE)
-                    .orElse(RetryRule.onException { _, t -> t.unwrapUnprocessedExceptionIfNecessary() is ConnectException })
+                    .orElse(RetryRule.onException { it.unwrapUnprocessedExceptionIfNecessary() is ConnectException })
                 val client = WebClient
                     .builder(
                         SessionProtocol.HTTP,

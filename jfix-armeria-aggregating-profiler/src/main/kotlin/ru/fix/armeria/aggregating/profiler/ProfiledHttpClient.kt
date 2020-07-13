@@ -38,7 +38,7 @@ class ProfiledHttpClient private constructor(delegate: HttpClient, private val p
             profileOnRequestCompleted(req, log)
         }
 
-        return unwrap().execute(ctx, req)
+        return delegate<Client<HttpRequest, HttpResponse>>().execute(ctx, req)
     }
 
     private fun startProfiledCallBeforeConnectionEstablished(req: HttpRequest, ctx: ClientRequestContext) {
