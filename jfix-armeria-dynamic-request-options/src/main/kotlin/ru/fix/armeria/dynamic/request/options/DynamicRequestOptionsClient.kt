@@ -8,6 +8,7 @@ import com.linecorp.armeria.common.HttpRequest
 import com.linecorp.armeria.common.HttpResponse
 import com.linecorp.armeria.common.Request
 import com.linecorp.armeria.common.Response
+import ru.fix.armeria.commons.asHttpClient
 import ru.fix.dynamic.property.api.DynamicProperty
 import java.util.function.Function
 
@@ -32,18 +33,12 @@ class DynamicRequestOptionsClient<RequestT : Request, ResponseT : Response>(
 
     companion object {
 
-        private class DynamicRequestOptionsHttpClient(
-            private val delegate: DynamicRequestOptionsClient<HttpRequest, HttpResponse>
-        ) : HttpClient, Client<HttpRequest, HttpResponse> by delegate
-
         @JvmStatic
         fun newHttpDecorator(
             readTimeoutProperty: DynamicProperty<Long>,
             writeTimeoutProperty: DynamicProperty<Long>
         ): Function<HttpClient, HttpClient> = Function {
-            DynamicRequestOptionsHttpClient(
-                DynamicRequestOptionsClient(it, readTimeoutProperty, writeTimeoutProperty)
-            )
+            DynamicRequestOptionsClient(it, readTimeoutProperty, writeTimeoutProperty).asHttpClient()
         }
     }
 
