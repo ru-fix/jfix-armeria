@@ -3,6 +3,8 @@ plugins {
 }
 
 dependencies {
+    implementation(project(Projs.commons.dependency))
+
     api(Libs.armeria)
     api(Libs.dynamic_property_api)
 
