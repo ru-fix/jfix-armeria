@@ -20,12 +20,10 @@ import io.kotest.matchers.maps.shouldContainExactly
 import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
 import io.mockk.*
-import org.junit.jupiter.api.DynamicTest
-import org.junit.jupiter.api.Nested
-import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.TestFactory
+import org.junit.jupiter.api.*
 import org.junit.jupiter.api.extension.ExtensionContext
-import org.junit.jupiter.api.extension.RegisterExtension
+import org.junit.jupiter.api.parallel.Execution
+import org.junit.jupiter.api.parallel.ExecutionMode
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.ArgumentsProvider
@@ -57,6 +55,8 @@ import java.time.Duration
 import java.util.concurrent.TimeUnit
 import java.util.stream.Stream
 
+@TestInstance(TestInstance.Lifecycle.PER_METHOD)
+@Execution(ExecutionMode.CONCURRENT)
 internal class ProfiledHttpClientTest {
 
     @ParameterizedTest
@@ -64,66 +64,79 @@ internal class ProfiledHttpClientTest {
     fun `success request profiled with connect, connected and whole request flow metrics`(
         testCaseArguments: ProtocolSpecificTest.CaseArguments
     ) {
-        val mockedProfiler = spyk(NoopProfiler())
-        val (mockedConnectCall, mockedConnectedCall, mockedSuccessCall) = Triple(
-            mockedProfiler.mockHttpConnectCall(),
-            mockedProfiler.mockHttpConnectedCall(),
-            mockedProfiler.mockHttpSuccessCall()
-        )
-        val localhostUri = mockServer.localhostUri(SessionProtocol.find(testCaseArguments.clientProtocol)!!)
-        val client = WebClient
-            .builder(localhostUri)
-            .decorator(ProfiledHttpClient.newDecorator(mockedProfiler))
-            .build()
-        val path = PATH_DELAYED_OK.replace("{delay}", 1_000.toString())
-        val expectedConnectMetricTags = mapOf(
-            MetricTags.METHOD to "GET",
-            MetricTags.PATH to path,
-            MetricTags.PROTOCOL to testCaseArguments.connectMetricTagProtocol,
-            MetricTags.IS_MULTIPLEX_PROTOCOL to testCaseArguments.connectMetricTagIsMultiplex.toString()
-        )
-        val expectedConnectedMetricTags = expectedConnectMetricTags + mapOf(
-            MetricTags.REMOTE_ADDRESS to LOCAL_ADDRESS,
-            MetricTags.REMOTE_HOST to LOCAL_HOST,
-            MetricTags.REMOTE_PORT to mockServer.httpPort().toString(),
-            //protocol and channel information are determined on this phase
-            MetricTags.PROTOCOL to testCaseArguments.otherMetricsTagProtocol,
-            MetricTags.IS_MULTIPLEX_PROTOCOL to testCaseArguments.otherMetricsTagIsMultiplex.toString(),
-            MetricTags.CHANNEL_CLASS to EPOLL_SOCKET_CHANNEL
-        )
-        val expectedSuccessMetricTags = expectedConnectedMetricTags + (MetricTags.RESPONSE_STATUS to "200")
-
-        client.get(path).aggregate().join()
-
-        val profilerCapturer = MockVerifyUtils.ProfilerInvader()
-        verifySequence {
-            //profile connect without chosen endpoint
-            withVerifyScope(mockedProfiler to mockedConnectCall) verifyConnect {
-                capture(profilerCapturer.connectSlot)
-            }
-
-            //profile when connection established
-            withVerifyScope(mockedProfiler to mockedConnectedCall) verifyConnected {
-                capture(profilerCapturer.connectedSlot)
-            }
-
-            //profile whole request execution
-            withVerifyScope(mockedProfiler to mockedSuccessCall) verifySuccess {
-                capture(profilerCapturer.successSlot)
+        val pathDelayedOk = "/ok-delayed/{delay}"
+        val mockServer = object : MockWebServerExtension() {
+            override fun configureServer(sb: ServerBuilder) {
+                sb.service(pathDelayedOk) { ctx, _ ->
+                    val delayMs = ctx.pathParam("delay")!!.toLong()
+                    HttpResponse.delayed(HttpResponse.of(HttpStatus.OK), Duration.ofMillis(delayMs))
+                }
             }
         }
-        profilerCapturer.assertSoftly {
-            connectSlot.captured.assertSoftly {
-                name shouldBe Metrics.HTTP_CONNECT
-                tags shouldContainExactly expectedConnectMetricTags
+        mockServer.start()
+        mockServer.server().use {
+
+            val mockedProfiler = spyk(NoopProfiler())
+            val (mockedConnectCall, mockedConnectedCall, mockedSuccessCall) = Triple(
+                mockedProfiler.mockHttpConnectCall(),
+                mockedProfiler.mockHttpConnectedCall(),
+                mockedProfiler.mockHttpSuccessCall()
+            )
+            val localhostUri = mockServer.localhostUri(SessionProtocol.find(testCaseArguments.clientProtocol)!!)
+            val client = WebClient
+                .builder(localhostUri)
+                .decorator(ProfiledHttpClient.newDecorator(mockedProfiler))
+                .build()
+            val path = pathDelayedOk.replace("{delay}", 1_000.toString())
+            val expectedConnectMetricTags = mapOf(
+                MetricTags.METHOD to "GET",
+                MetricTags.PATH to path,
+                MetricTags.PROTOCOL to testCaseArguments.connectMetricTagProtocol,
+                MetricTags.IS_MULTIPLEX_PROTOCOL to testCaseArguments.connectMetricTagIsMultiplex.toString()
+            )
+            val expectedConnectedMetricTags = expectedConnectMetricTags + mapOf(
+                MetricTags.REMOTE_ADDRESS to LOCAL_ADDRESS,
+                MetricTags.REMOTE_HOST to LOCAL_HOST,
+                MetricTags.REMOTE_PORT to mockServer.httpPort().toString(),
+                //protocol and channel information are determined on this phase
+                MetricTags.PROTOCOL to testCaseArguments.otherMetricsTagProtocol,
+                MetricTags.IS_MULTIPLEX_PROTOCOL to testCaseArguments.otherMetricsTagIsMultiplex.toString(),
+                MetricTags.CHANNEL_CLASS to EPOLL_SOCKET_CHANNEL
+            )
+            val expectedSuccessMetricTags = expectedConnectedMetricTags + (MetricTags.RESPONSE_STATUS to "200")
+
+            client.get(path).aggregate().join()
+
+            val profilerCapturer = MockVerifyUtils.ProfilerInvader()
+            verifySequence {
+                //profile connect without chosen endpoint
+                withVerifyScope(mockedProfiler to mockedConnectCall) verifyConnect {
+                    capture(profilerCapturer.connectSlot)
+                }
+
+                //profile when connection established
+                withVerifyScope(mockedProfiler to mockedConnectedCall) verifyConnected {
+                    capture(profilerCapturer.connectedSlot)
+                }
+
+                //profile whole request execution
+                withVerifyScope(mockedProfiler to mockedSuccessCall) verifySuccess {
+                    capture(profilerCapturer.successSlot)
+                }
             }
-            connectedSlot.captured.assertSoftly {
-                name shouldBe Metrics.HTTP_CONNECTED
-                tags shouldContainExactly expectedConnectedMetricTags
-            }
-            successSlot.captured.assertSoftly {
-                name shouldBe Metrics.HTTP_SUCCESS
-                tags shouldContainExactly expectedSuccessMetricTags
+            profilerCapturer.assertSoftly {
+                connectSlot.captured.assertSoftly {
+                    name shouldBe Metrics.HTTP_CONNECT
+                    tags shouldContainExactly expectedConnectMetricTags
+                }
+                connectedSlot.captured.assertSoftly {
+                    name shouldBe Metrics.HTTP_CONNECTED
+                    tags shouldContainExactly expectedConnectedMetricTags
+                }
+                successSlot.captured.assertSoftly {
+                    name shouldBe Metrics.HTTP_SUCCESS
+                    tags shouldContainExactly expectedSuccessMetricTags
+                }
             }
         }
     }
@@ -409,115 +422,120 @@ internal class ProfiledHttpClientTest {
 
         @Test
         fun `before profiled one THEN each retry attempt profiled`() {
-            val mockedProfiler = spyk(NoopProfiler())
-            val expectedMetricsCount = 8
-            mockServer.enqueue(
-                HttpResponse.delayed(
-                    HttpResponse.of(HttpStatus.SERVICE_UNAVAILABLE),
-                    Duration.ofMillis(500)
-                )
-            )
-            mockServer.enqueue(
-                HttpResponse.delayed(HttpResponse.of(HttpStatus.OK), Duration.ofMillis(200))
-            )
-            val retryRule = RetryRule.onStatus(HttpStatus.SERVICE_UNAVAILABLE)
-                .orElse(RetryRule.onException { it.unwrapUnprocessedExceptionIfNecessary() is ConnectException })
-            val client = WebClient
-                .builder(
-                    SessionProtocol.HTTP,
-                    EndpointGroup.of(
-                        EndpointSelectionStrategy.roundRobin(),
-                        Endpoint.of(LOCAL_HOST, mockServer.httpPort()),
-                        Endpoint.of(LOCAL_HOST, getAvailableRandomPort())
-                    )
-                )
-                .decorator(ProfiledHttpClient.newDecorator(mockedProfiler))
-                .decorator(RetryingClient.newDecorator(retryRule, 3))
-                .build()
-
-            client.get("/").aggregate().join()
-
-            val capturedProfilerIdentities = mutableListOf<Identity>()
-            verify(exactly = expectedMetricsCount) {
-                mockedProfiler.profiledCall(
-                    capture(capturedProfilerIdentities)
-                )
+            val mockServer = MockWebServerExtension().apply {
+                start()
             }
-            confirmVerified(mockedProfiler)
-            capturedProfilerIdentities shouldHaveSize expectedMetricsCount
-            assertSoftly {
-                val secondRequestIndex = 3
-                val thirdRequestIndex = 5
-                listOf(
-                    capturedProfilerIdentities.first(), //1st metric of 1st request
-                    capturedProfilerIdentities[secondRequestIndex], //1st metric of 2nd request
-                    capturedProfilerIdentities[thirdRequestIndex] //1st metric of 3rd request
-                ).forAll {
-                    it.name shouldBe Metrics.HTTP_CONNECT
-                    it.tags shouldContainExactly mapOf(
-                        MetricTags.PATH to "/",
-                        MetricTags.METHOD to "GET",
-                        MetricTags.PROTOCOL to "http",
-                        MetricTags.IS_MULTIPLEX_PROTOCOL to false.toString()
+            mockServer.server().use {
+                val mockedProfiler = spyk(NoopProfiler())
+                val expectedMetricsCount = 8
+                mockServer.enqueue(
+                    HttpResponse.delayed(
+                        HttpResponse.of(HttpStatus.SERVICE_UNAVAILABLE),
+                        Duration.ofMillis(500)
+                    )
+                )
+                mockServer.enqueue(
+                    HttpResponse.delayed(HttpResponse.of(HttpStatus.OK), Duration.ofMillis(200))
+                )
+                val retryRule = RetryRule.onStatus(HttpStatus.SERVICE_UNAVAILABLE)
+                    .orElse(RetryRule.onException { it.unwrapUnprocessedExceptionIfNecessary() is ConnectException })
+                val client = WebClient
+                    .builder(
+                        SessionProtocol.HTTP,
+                        EndpointGroup.of(
+                            EndpointSelectionStrategy.roundRobin(),
+                            Endpoint.of(LOCAL_HOST, mockServer.httpPort()),
+                            Endpoint.of(LOCAL_HOST, getAvailableRandomPort())
+                        )
+                    )
+                    .decorator(ProfiledHttpClient.newDecorator(mockedProfiler))
+                    .decorator(RetryingClient.newDecorator(retryRule, 3))
+                    .build()
+
+                client.get("/").aggregate().join()
+
+                val capturedProfilerIdentities = mutableListOf<Identity>()
+                verify(exactly = expectedMetricsCount) {
+                    mockedProfiler.profiledCall(
+                        capture(capturedProfilerIdentities)
                     )
                 }
-                // Requests to valid mock server
-                listOf(
-                    capturedProfilerIdentities[1], //2nd metric of 1st request
-                    capturedProfilerIdentities[thirdRequestIndex + 1] //2nd metric of 3rd request
-                ).forAll {
-                    it.name shouldBe Metrics.HTTP_CONNECTED
-                    it.tags shouldContainExactly mapOf(
-                        MetricTags.PATH to "/",
-                        MetricTags.METHOD to "GET",
-                        MetricTags.PROTOCOL to "h2c",
-                        MetricTags.IS_MULTIPLEX_PROTOCOL to true.toString(),
-                        MetricTags.CHANNEL_CLASS to EPOLL_SOCKET_CHANNEL,
-                        MetricTags.REMOTE_ADDRESS to LOCAL_ADDRESS,
-                        MetricTags.REMOTE_HOST to LOCAL_HOST,
-                        MetricTags.REMOTE_PORT to mockServer.httpPort().toString()
-                    )
-                }
-                //error metric of 1st requests
-                capturedProfilerIdentities[2] should {
-                    it.name shouldBe Metrics.HTTP_ERROR
-                    it.tags shouldContainExactly mapOf(
-                        MetricTags.PATH to "/",
-                        MetricTags.METHOD to "GET",
-                        MetricTags.PROTOCOL to "h2c",
-                        MetricTags.IS_MULTIPLEX_PROTOCOL to true.toString(),
-                        MetricTags.CHANNEL_CLASS to EPOLL_SOCKET_CHANNEL,
-                        MetricTags.REMOTE_ADDRESS to LOCAL_ADDRESS,
-                        MetricTags.REMOTE_HOST to LOCAL_HOST,
-                        MetricTags.REMOTE_PORT to mockServer.httpPort().toString(),
-                        MetricTags.ERROR_TYPE to "invalid_status",
-                        MetricTags.RESPONSE_STATUS to "503"
-                    )
-                }
-                //error metric of 2nd requests
-                capturedProfilerIdentities[secondRequestIndex + 1] should {
-                    it.name shouldBe Metrics.HTTP_ERROR
-                    it.tags shouldContainExactly mapOf(
-                        MetricTags.PATH to "/",
-                        MetricTags.METHOD to "GET",
-                        MetricTags.PROTOCOL to "http",
-                        MetricTags.IS_MULTIPLEX_PROTOCOL to false.toString(),
-                        MetricTags.ERROR_TYPE to "connect_refused"
-                    )
-                }
-                capturedProfilerIdentities.last() should {
-                    it.name shouldBe Metrics.HTTP_SUCCESS
-                    it.tags shouldContainExactly mapOf(
-                        MetricTags.PATH to "/",
-                        MetricTags.METHOD to "GET",
-                        MetricTags.PROTOCOL to "h2c",
-                        MetricTags.IS_MULTIPLEX_PROTOCOL to true.toString(),
-                        MetricTags.CHANNEL_CLASS to EPOLL_SOCKET_CHANNEL,
-                        MetricTags.REMOTE_ADDRESS to LOCAL_ADDRESS,
-                        MetricTags.REMOTE_HOST to LOCAL_HOST,
-                        MetricTags.REMOTE_PORT to mockServer.httpPort().toString(),
-                        MetricTags.RESPONSE_STATUS to "200"
-                    )
+                confirmVerified(mockedProfiler)
+                capturedProfilerIdentities shouldHaveSize expectedMetricsCount
+                assertSoftly {
+                    val secondRequestIndex = 3
+                    val thirdRequestIndex = 5
+                    listOf(
+                        capturedProfilerIdentities.first(), //1st metric of 1st request
+                        capturedProfilerIdentities[secondRequestIndex], //1st metric of 2nd request
+                        capturedProfilerIdentities[thirdRequestIndex] //1st metric of 3rd request
+                    ).forAll {
+                        it.name shouldBe Metrics.HTTP_CONNECT
+                        it.tags shouldContainExactly mapOf(
+                            MetricTags.PATH to "/",
+                            MetricTags.METHOD to "GET",
+                            MetricTags.PROTOCOL to "http",
+                            MetricTags.IS_MULTIPLEX_PROTOCOL to false.toString()
+                        )
+                    }
+                    // Requests to valid mock server
+                    listOf(
+                        capturedProfilerIdentities[1], //2nd metric of 1st request
+                        capturedProfilerIdentities[thirdRequestIndex + 1] //2nd metric of 3rd request
+                    ).forAll {
+                        it.name shouldBe Metrics.HTTP_CONNECTED
+                        it.tags shouldContainExactly mapOf(
+                            MetricTags.PATH to "/",
+                            MetricTags.METHOD to "GET",
+                            MetricTags.PROTOCOL to "h2c",
+                            MetricTags.IS_MULTIPLEX_PROTOCOL to true.toString(),
+                            MetricTags.CHANNEL_CLASS to EPOLL_SOCKET_CHANNEL,
+                            MetricTags.REMOTE_ADDRESS to LOCAL_ADDRESS,
+                            MetricTags.REMOTE_HOST to LOCAL_HOST,
+                            MetricTags.REMOTE_PORT to mockServer.httpPort().toString()
+                        )
+                    }
+                    //error metric of 1st requests
+                    capturedProfilerIdentities[2] should {
+                        it.name shouldBe Metrics.HTTP_ERROR
+                        it.tags shouldContainExactly mapOf(
+                            MetricTags.PATH to "/",
+                            MetricTags.METHOD to "GET",
+                            MetricTags.PROTOCOL to "h2c",
+                            MetricTags.IS_MULTIPLEX_PROTOCOL to true.toString(),
+                            MetricTags.CHANNEL_CLASS to EPOLL_SOCKET_CHANNEL,
+                            MetricTags.REMOTE_ADDRESS to LOCAL_ADDRESS,
+                            MetricTags.REMOTE_HOST to LOCAL_HOST,
+                            MetricTags.REMOTE_PORT to mockServer.httpPort().toString(),
+                            MetricTags.ERROR_TYPE to "invalid_status",
+                            MetricTags.RESPONSE_STATUS to "503"
+                        )
+                    }
+                    //error metric of 2nd requests
+                    capturedProfilerIdentities[secondRequestIndex + 1] should {
+                        it.name shouldBe Metrics.HTTP_ERROR
+                        it.tags shouldContainExactly mapOf(
+                            MetricTags.PATH to "/",
+                            MetricTags.METHOD to "GET",
+                            MetricTags.PROTOCOL to "http",
+                            MetricTags.IS_MULTIPLEX_PROTOCOL to false.toString(),
+                            MetricTags.ERROR_TYPE to "connect_refused"
+                        )
+                    }
+                    capturedProfilerIdentities.last() should {
+                        it.name shouldBe Metrics.HTTP_SUCCESS
+                        it.tags shouldContainExactly mapOf(
+                            MetricTags.PATH to "/",
+                            MetricTags.METHOD to "GET",
+                            MetricTags.PROTOCOL to "h2c",
+                            MetricTags.IS_MULTIPLEX_PROTOCOL to true.toString(),
+                            MetricTags.CHANNEL_CLASS to EPOLL_SOCKET_CHANNEL,
+                            MetricTags.REMOTE_ADDRESS to LOCAL_ADDRESS,
+                            MetricTags.REMOTE_HOST to LOCAL_HOST,
+                            MetricTags.REMOTE_PORT to mockServer.httpPort().toString(),
+                            MetricTags.RESPONSE_STATUS to "200"
+                        )
+                    }
                 }
             }
         }
@@ -531,10 +549,12 @@ internal class ProfiledHttpClientTest {
                 } returns mockedSuccessCall
             }
             val expectedMetricsCount = 3
+            val mockServer = MockWebServerExtension()
             val mockServer2 = MockWebServerExtension()
             val firstRequestDelayMillis: Long = 500
             val lastRequestDelayMillis: Long = 200
             try {
+                mockServer.start()
                 mockServer2.start()
 
                 mockServer.enqueue(
@@ -627,6 +647,7 @@ internal class ProfiledHttpClientTest {
                             firstRequestDelayMillis + lastRequestDelayMillis
                 }
             } finally {
+                mockServer.stop()
                 mockServer2.stop()
             }
         }
@@ -640,10 +661,12 @@ internal class ProfiledHttpClientTest {
                 } returns mockedErrorCall
             }
             val expectedMetricsCount = 3
+            val mockServer = MockWebServerExtension()
             val mockServer2 = MockWebServerExtension()
             val firstRequestDelayMillis: Long = 400
             val lastRequestDelayMillis: Long = 300
             try {
+                mockServer.start()
                 mockServer2.start()
 
                 mockServer.enqueue(
@@ -740,6 +763,7 @@ internal class ProfiledHttpClientTest {
                             firstRequestDelayMillis + lastRequestDelayMillis
                 }
             } finally {
+                mockServer.stop()
                 mockServer2.stop()
             }
         }
@@ -761,21 +785,7 @@ internal class ProfiledHttpClientTest {
 
     companion object {
 
-        const val PATH_DELAYED_OK = "/ok-delayed/{delay}"
-
         fun getAvailableRandomPort() = SocketChecker.getAvailableRandomPort()
-
-        @JvmField
-        @RegisterExtension
-        val mockServer = object : MockWebServerExtension() {
-            override fun configureServer(sb: ServerBuilder) {
-                sb.service(PATH_DELAYED_OK) { ctx, _ ->
-                    val delayMs = ctx.pathParam("delay")!!.toLong()
-                    HttpResponse.delayed(HttpResponse.of(HttpStatus.OK), Duration.ofMillis(delayMs))
-                }
-            }
-
-        }
 
         object MockVerifyUtils {
             class ProfilerInvader {

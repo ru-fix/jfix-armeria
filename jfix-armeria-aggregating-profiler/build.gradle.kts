@@ -21,7 +21,6 @@ dependencies {
     testImplementation(Libs.junit_params)
     testRuntimeOnly(Libs.junit_engine)
     //  Kotest
-    testImplementation(Libs.kotest_runner_junit5_jvm)
     testImplementation(Libs.kotest_assertions_core_jvm)
     //  Test Logging
     testRuntimeOnly(Libs.log4j_core)

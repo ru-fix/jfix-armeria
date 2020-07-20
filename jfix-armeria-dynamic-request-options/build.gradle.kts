@@ -16,7 +16,6 @@ dependencies {
     testImplementation(Libs.junit_api)
     testImplementation(Libs.junit_params)
     testRuntimeOnly(Libs.junit_engine)
-    testImplementation(Libs.kotest_runner_junit5_jvm)
     testImplementation(Libs.kotest_assertions_core_jvm)
     testImplementation(Libs.armeria_testing_junit)
     testRuntimeOnly(Libs.log4j_core)
