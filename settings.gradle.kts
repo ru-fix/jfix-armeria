@@ -1,5 +1,11 @@
 rootProject.name = "jfix-armeria"
 
-include(
-        "jfix-armeria-dynamic-request-options"
-)
+val projects = listOf(
+    "commons",
+    "dynamic-request-options",
+    "aggregating-profiler"
+).map { "${rootProject.name}-$it" }
+
+for (project in projects) {
+    include(project)
+}

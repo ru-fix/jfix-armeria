@@ -4,8 +4,6 @@ import com.linecorp.armeria.client.Client
 import com.linecorp.armeria.client.ClientRequestContext
 import com.linecorp.armeria.client.HttpClient
 import com.linecorp.armeria.client.SimpleDecoratingClient
-import com.linecorp.armeria.common.HttpRequest
-import com.linecorp.armeria.common.HttpResponse
 import com.linecorp.armeria.common.Request
 import com.linecorp.armeria.common.Response
 import ru.fix.dynamic.property.api.DynamicProperty
