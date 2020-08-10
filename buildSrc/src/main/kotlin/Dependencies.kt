@@ -9,11 +9,12 @@ object Vers {
 
     // Kotlin Dependencies
     const val kotlin = "1.3.72"
+    const val kotlinx_coroutines = "1.3.8"
 
     // JFix components
     const val aggregating_profiler = "1.6.5"
     const val dynamic_property = "2.0.7"
-    const val jfix_stdlib = "3.0.8"
+    const val jfix_stdlib = "3.0.9"
 
     // Armeria
     const val armeria = "0.99.6"
@@ -24,8 +25,10 @@ object Vers {
 
     // Testing
     const val junit = "5.6.2"
-    const val kotest = "4.1.1"
+    const val kotest = "4.1.3"
     const val mockk = "1.10.0"
+    const val corounit = "1.0.31"
+    const val awailability = "3.1.6"
 }
 
 object Libs {
@@ -41,11 +44,15 @@ object Libs {
     // Kotlin
     const val kotlin_stdlib = "org.jetbrains.kotlin:kotlin-stdlib:${Vers.kotlin}"
     const val kotlin_jdk8 = "org.jetbrains.kotlin:kotlin-stdlib-jdk8:${Vers.kotlin}"
+    const val kotlinx_coroutines_core = "org.jetbrains.kotlinx:kotlinx-coroutines-core:${Vers.kotlinx_coroutines}"
+    const val kotlinx_coroutines_jdk8 = "org.jetbrains.kotlinx:kotlinx-coroutines-jdk8:${Vers.kotlinx_coroutines}"
 
     // JFix components
     const val dynamic_property_api = "ru.fix:dynamic-property-api:${Vers.dynamic_property}"
     const val aggregating_profiler = "ru.fix:aggregating-profiler:${Vers.aggregating_profiler}"
     const val jfix_stdlib_socket = "ru.fix:jfix-stdlib-socket:${Vers.jfix_stdlib}"
+    const val jfix_stdlib_ratelimiter = "ru.fix:jfix-stdlib-ratelimiter:${Vers.jfix_stdlib}"
+    const val jfix_stdlib_concurrency = "ru.fix:jfix-stdlib-concurrency:${Vers.jfix_stdlib}"
 
     // Logging
     const val log4j_kotlin = "org.apache.logging.log4j:log4j-api-kotlin:${Vers.log4j_kotlin}"
@@ -54,6 +61,7 @@ object Libs {
 
     // Armeria
     const val armeria = "com.linecorp.armeria:armeria:${Vers.armeria}"
+    const val armeria_retrofit2 = "com.linecorp.armeria:armeria-retrofit2:${Vers.armeria}"
 
     // Testing
     const val junit_api = "org.junit.jupiter:junit-jupiter-api:${Vers.junit}"
@@ -62,6 +70,8 @@ object Libs {
     const val armeria_testing_junit = "com.linecorp.armeria:armeria-testing-junit:${Vers.armeria}"
     const val kotest_assertions_core_jvm = "io.kotest:kotest-assertions-core-jvm:${Vers.kotest}"
     const val mockk = "io.mockk:mockk:${Vers.mockk}"
+    const val corounit_engine = "ru.fix:corounit-engine:${Vers.corounit}"
+    const val awailability_kotlin = "org.awaitility:awaitility-kotlin:${Vers.awailability}"
 }
 
 enum class Projs {

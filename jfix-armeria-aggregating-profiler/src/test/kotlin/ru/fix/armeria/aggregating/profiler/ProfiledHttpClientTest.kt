@@ -124,16 +124,16 @@ internal class ProfiledHttpClientTest {
                     capture(profilerCapturer.successSlot)
                 }
             }
-            profilerCapturer.assertSoftly {
-                connectSlot.captured.assertSoftly {
+            assertSoftly(profilerCapturer) {
+                assertSoftly(connectSlot.captured) {
                     name shouldBe Metrics.HTTP_CONNECT
                     tags shouldContainExactly expectedConnectMetricTags
                 }
-                connectedSlot.captured.assertSoftly {
+                assertSoftly(connectedSlot.captured) {
                     name shouldBe Metrics.HTTP_CONNECTED
                     tags shouldContainExactly expectedConnectedMetricTags
                 }
-                successSlot.captured.assertSoftly {
+                assertSoftly(successSlot.captured) {
                     name shouldBe Metrics.HTTP_SUCCESS
                     tags shouldContainExactly expectedSuccessMetricTags
                 }
@@ -349,7 +349,7 @@ internal class ProfiledHttpClientTest {
                         }
                     }
                 }
-                identitySlot.captured.assertSoftly {
+                assertSoftly(identitySlot.captured) {
                     name shouldBe Metrics.HTTP_ERROR
                     tags shouldContainExactly expectedErrorMetricTags(mockServer.mockUri).toMap()
                 }
@@ -403,7 +403,7 @@ internal class ProfiledHttpClientTest {
                     capture(identitySlot)
                 }
             }
-            identitySlot.captured.assertSoftly {
+            assertSoftly(identitySlot.captured) {
                 name shouldBe Metrics.HTTP_ERROR
                 tags shouldContainExactly mapOf(
                     MetricTags.ERROR_TYPE to "no_available_endpoint",

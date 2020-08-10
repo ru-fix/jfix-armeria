@@ -91,9 +91,9 @@ internal class ProfiledConnectionPoolListenerTest {
         val connectionsIndicatorValueAfterTtlExpired = connectionCountIndicatorSlot.captured.get()
         confirmVerified(mockedProfiler, mockedConnectionLifetimeCall)
         assertSoftly {
-            connectionLifetimeMetricSlot.captured.assertSoftly {
-                it.name shouldBe Metrics.CONNECTION_LIFETIME
-                it.tags shouldContainExactly mapOf(
+            assertSoftly(connectionLifetimeMetricSlot.captured) {
+                name shouldBe Metrics.CONNECTION_LIFETIME
+                tags shouldContainExactly mapOf(
                     MetricTags.REMOTE_HOST to LOCAL_HOST,
                     MetricTags.REMOTE_ADDRESS to LOCAL_ADDRESS,
                     MetricTags.REMOTE_PORT to mockServer.httpPort().toString(),

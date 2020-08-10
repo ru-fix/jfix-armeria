@@ -14,3 +14,6 @@ private class DecoratingHttpClient(
 }
 
 fun Client<HttpRequest, HttpResponse>.asHttpClient(): HttpClient = DecoratingHttpClient(this)
+
+fun <T> T.asHttpClient(): AutoCloseableHttpClient<T>
+        where T : AutoCloseable, T : Client<HttpRequest, HttpResponse> = AutoCloseableHttpClient(this)
