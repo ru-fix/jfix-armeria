@@ -2,7 +2,7 @@ rootProject.name = "jfix-armeria"
 
 val projects = listOf(
     "commons",
-    "dynamic-request-options",
+    "dynamic-request",
     "aggregating-profiler",
     "limiter"
 ).map { "${rootProject.name}-$it" }
