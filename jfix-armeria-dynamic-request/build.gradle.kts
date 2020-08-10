@@ -13,11 +13,19 @@ dependencies {
     implementation(Libs.kotlin_jdk8)
 
     // Testing
+    testImplementation(Libs.kotlinx_coroutines_core)
+    testImplementation(Libs.kotlinx_coroutines_jdk8)
+    //   Junit
     testImplementation(Libs.junit_api)
     testImplementation(Libs.junit_params)
     testRuntimeOnly(Libs.junit_engine)
+    testRuntimeOnly(Libs.corounit_engine)
+    //  Kotest
     testImplementation(Libs.kotest_assertions_core_jvm)
-    testImplementation(Libs.armeria_testing_junit)
+    //  Test Logging
     testRuntimeOnly(Libs.log4j_core)
     testRuntimeOnly(Libs.slf4j_over_log4j)
+    //  Mocking
+    testImplementation(Libs.mockk)
+    testImplementation(Libs.armeria_testing_junit)
 }
