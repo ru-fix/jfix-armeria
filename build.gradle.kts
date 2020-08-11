@@ -82,6 +82,9 @@ subprojects {
         jcenter()
         mavenCentral()
         mavenLocal()
+        if (!repositoryUrl.isNullOrEmpty()) {
+            maven(url = repositoryUrl.toString())
+        }
     }
 
     val sourcesJar by tasks.creating(Jar::class) {
@@ -176,7 +179,7 @@ subprojects {
             logger.info("Signing key id provided. Sign artifacts for $project.")
             isRequired = true
         } else {
-            logger.info("${project.name}: Signing key not provided. Disable signing for  $project.")
+            logger.warn("${project.name}: Signing key not provided. Disable signing for  $project.")
             isRequired = false
         }
         sign(publishing.publications)

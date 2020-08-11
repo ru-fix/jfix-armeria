@@ -6,6 +6,7 @@ import com.linecorp.armeria.client.HttpClient
 import com.linecorp.armeria.client.SimpleDecoratingClient
 import com.linecorp.armeria.common.Request
 import com.linecorp.armeria.common.Response
+import ru.fix.armeria.commons.asHttpClient
 import ru.fix.dynamic.property.api.DynamicProperty
 import java.util.function.Function
 
@@ -16,7 +17,7 @@ import java.util.function.Function
  * @property readTimeoutProperty property with value of [ClientRequestContext.responseTimeoutMillis]
  * @property writeTimeoutProperty property with value of [ClientRequestContext.writeTimeoutMillis]
  */
-open class DynamicRequestOptionsClient<RequestT : Request, ResponseT : Response>(
+class DynamicRequestOptionsClient<RequestT : Request, ResponseT : Response>(
     delegate: Client<RequestT, ResponseT>,
     private val readTimeoutProperty: DynamicProperty<Long>,
     private val writeTimeoutProperty: DynamicProperty<Long>
@@ -35,7 +36,7 @@ open class DynamicRequestOptionsClient<RequestT : Request, ResponseT : Response>
             readTimeoutProperty: DynamicProperty<Long>,
             writeTimeoutProperty: DynamicProperty<Long>
         ): Function<HttpClient, HttpClient> = Function {
-            DynamicRequestOptionsHttpClient(it, readTimeoutProperty, writeTimeoutProperty)
+            DynamicRequestOptionsClient(it, readTimeoutProperty, writeTimeoutProperty).asHttpClient()
         }
     }
 
