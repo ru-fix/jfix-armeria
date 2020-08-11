@@ -126,9 +126,9 @@ callback is not executed.
     suspend fun `RPS restricted by rate limiter dispatcher for 'WebClient'`() {
         `emulate load to server with specified client and check throughput`<WebClient>(
             rateLimiterName = "WebClient-limiter",
-            targetPermitsPerSec = 500,
-            windowProperty = DynamicProperty.of(1000),
-            requestsCount = 2000,
+            targetPermitsPerSec = 100,
+            windowProperty = DynamicProperty.of(200),
+            requestsCount = 400,
             mockServerCreator = { requestsCount ->
                 mockServerWithResponsesDelayedByIndexMod(requestsCount).let {
                     MockServerCreatorResult(it.start(), it.httpUri())
@@ -158,9 +158,9 @@ callback is not executed.
     suspend fun `RPS restricted by rate limiter dispatcher for 'streaming retrofit'`() {
         `emulate load to server with specified client and check throughput`<TestClient>(
             rateLimiterName = "retrofit-streaming-client-limiter",
-            targetPermitsPerSec = 500,
-            windowProperty = DynamicProperty.of(1000),
-            requestsCount = 2000,
+            targetPermitsPerSec = 100,
+            windowProperty = DynamicProperty.of(200),
+            requestsCount = 400,
             mockServerCreator = { requestsCount ->
                 mockServerWithResponsesDelayedByIndexMod(requestsCount).let {
                     MockServerCreatorResult(it.start(), it.httpUri())
@@ -200,9 +200,9 @@ callback is not executed.
     suspend fun `RPS restricted by rate limiter dispatcher for 'blocking retrofit'`() {
         `emulate load to server with specified client and check throughput`<TestClient>(
             rateLimiterName = "retrofit-blocking-client-limiter",
-            targetPermitsPerSec = 500,
-            windowProperty = DynamicProperty.of(1000),
-            requestsCount = 2000,
+            targetPermitsPerSec = 100,
+            windowProperty = DynamicProperty.of(200),
+            requestsCount = 400,
             mockServerCreator = { requestsCount ->
                 mockServerWithResponsesDelayedByIndexMod(requestsCount).let {
                     MockServerCreatorResult(it.start(), it.httpUri())
