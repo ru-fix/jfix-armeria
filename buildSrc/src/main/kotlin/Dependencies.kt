@@ -27,7 +27,7 @@ object Vers {
     const val junit = "5.6.2"
     const val kotest = "4.1.3"
     const val mockk = "1.10.0"
-    const val corounit = "1.0.31"
+    const val corounit = "1.0.32"
     const val awailability = "3.1.6"
 }
 
