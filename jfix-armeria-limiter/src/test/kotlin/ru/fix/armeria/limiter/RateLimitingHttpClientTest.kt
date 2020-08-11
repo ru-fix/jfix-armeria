@@ -15,10 +15,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.future.asDeferred
 import mu.KLogging
 import org.awaitility.Duration.ONE_SECOND
-import org.awaitility.kotlin.atMost
-import org.awaitility.kotlin.await
-import org.awaitility.kotlin.has
-import org.awaitility.kotlin.untilCallTo
+import org.awaitility.kotlin.*
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import retrofit2.create
@@ -26,7 +23,6 @@ import retrofit2.http.GET
 import ru.fix.aggregating.profiler.AggregatingProfiler
 import ru.fix.aggregating.profiler.Identity
 import ru.fix.aggregating.profiler.Profiler
-import ru.fix.aggregating.profiler.ProfilerReport
 import ru.fix.dynamic.property.api.DynamicProperty
 import ru.fix.stdlib.concurrency.threads.NamedExecutors
 import ru.fix.stdlib.ratelimiter.ConfigurableRateLimiter
@@ -272,7 +268,7 @@ callback is not executed.
             mockServerCreator: MockServerCreator,
             createHttpClientWithProfiledCall: ClientWithProfiledCallCreator<ClientT>,
             emulateLoadFromClientToServer: ClientToServerLoadEmulator<ClientT>
-        ): ProfilerReport {
+        ) {
             val targetPermitsPerSecDouble = targetPermitsPerSec.toDouble()
             val (autoCloseable, mockServerUri) = mockServerCreator(requestsCount)
             autoCloseable.use {
@@ -300,20 +296,21 @@ callback is not executed.
                         logger.info { "Submitting $requestsCount requests..." }
                         emulateLoadFromClientToServer(requestsCount, client)
                         logger.info { "Requests completed. Building profiler report..." }
-                        val report = reporter.buildReportAndReset()
-                        logger.info { "Report: $report" }
 
-                        assertSoftly(report) {
-                            val testMetricCallReport =
-                                profilerCallReports.single { it.identity.name.endsWith(TEST_METRIC_NAME) }
-                            testMetricCallReport.startThroughputAvg.shouldBeBetween(
-                                targetPermitsPerSecDouble,
-                                targetPermitsPerSecDouble,
-                                targetPermitsPerSecDouble * 0.10
-                            )
-                            indicators.indicatorWithNameEnding(ACTIVE_ASYNC_OPERATIONS_METRIC) shouldBe 0
+                        await atMost ONE_SECOND untilAsserted {
+                            val report = reporter.buildReportAndReset()
+                            logger.info { "Report: $report" }
+                            assertSoftly(report) {
+                                val testMetricCallReport =
+                                    profilerCallReports.single { it.identity.name.endsWith(TEST_METRIC_NAME) }
+                                testMetricCallReport.startThroughputAvg.shouldBeBetween(
+                                    targetPermitsPerSecDouble,
+                                    targetPermitsPerSecDouble,
+                                    targetPermitsPerSecDouble * 0.10
+                                )
+                                indicators.indicatorWithNameEnding(ACTIVE_ASYNC_OPERATIONS_METRIC) shouldBe 0
+                            }
                         }
-                        return report
                     }
             }
         }
