@@ -4,31 +4,37 @@ import com.linecorp.armeria.client.ResponseTimeoutException
 import com.linecorp.armeria.client.WebClient
 import com.linecorp.armeria.common.HttpResponse
 import com.linecorp.armeria.common.HttpStatus
-import com.linecorp.armeria.testing.junit.server.mock.MockWebServerExtension
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
-import io.kotest.matchers.throwable.shouldHaveCauseInstanceOf
+import kotlinx.coroutines.future.await
+import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.extension.RegisterExtension
+import ru.fix.armeria.commons.testing.ArmeriaMockServer
 import ru.fix.dynamic.property.api.AtomicProperty
 import ru.fix.dynamic.property.api.DynamicProperty
 import java.time.Duration
-import java.util.concurrent.CompletionException
 
 internal class DynamicRequestOptionsClientTest {
 
-    companion object {
-        @JvmField
-        @RegisterExtension
-        val server = MockWebServerExtension()
+    val mockServer = ArmeriaMockServer()
+
+    @BeforeEach
+    suspend fun setUp() {
+        mockServer.start()
+    }
+
+    @AfterEach
+    suspend fun tearDown() {
+        mockServer.stop()
     }
 
     @Test
-    fun `WHEN read timeout changed THEN new value applied to subsequent requests`() {
+    suspend fun `WHEN read timeout changed THEN new value applied to subsequent requests`() {
         val serverResponseDelay = 1_000L
         val readTimeoutProperty = AtomicProperty(serverResponseDelay + 500)
-        val client = WebClient.builder(server.httpUri())
+        val client = WebClient.builder(mockServer.httpUri())
             .decorator(
                 DynamicRequestOptionsClient.newHttpDecorator(readTimeoutProperty, DynamicProperty.of(0))
             ).build()
@@ -36,18 +42,17 @@ internal class DynamicRequestOptionsClientTest {
             HttpResponse.delayed(HttpResponse.of(HttpStatus.OK), Duration.ofMillis(serverResponseDelay))
 
         // no timeout happened
-        server.enqueue(delayedResponse())
+        mockServer.enqueue(delayedResponse())
         val expectedToNotFailRequest = client.get("/")
         // change property and now timeout must take place on next request
         readTimeoutProperty.set(serverResponseDelay - 500)
-        expectedToNotFailRequest.aggregate().join() should {
+        expectedToNotFailRequest.aggregate().await() should {
             it.status() shouldBe HttpStatus.OK
         }
-        server.enqueue(delayedResponse())
-        val thrownException = shouldThrow<CompletionException> {
-            client.get("/").aggregate().join()
+        mockServer.enqueue(delayedResponse())
+        shouldThrow<ResponseTimeoutException> {
+            client.get("/").aggregate().await()
         }
-        thrownException.shouldHaveCauseInstanceOf<ResponseTimeoutException>()
     }
 
     /*

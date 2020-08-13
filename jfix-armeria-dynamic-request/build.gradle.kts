@@ -13,6 +13,7 @@ dependencies {
     implementation(Libs.kotlin_jdk8)
 
     // Testing
+    testImplementation(project(Projs.`commons-testing`.dependency))
     testImplementation(Libs.kotlinx_coroutines_core)
     testImplementation(Libs.kotlinx_coroutines_jdk8)
     //   Junit
@@ -27,5 +28,5 @@ dependencies {
     testRuntimeOnly(Libs.slf4j_over_log4j)
     //  Mocking
     testImplementation(Libs.mockk)
-    testImplementation(Libs.armeria_testing_junit)
+    testImplementation(Libs.armeria_junit5)
 }

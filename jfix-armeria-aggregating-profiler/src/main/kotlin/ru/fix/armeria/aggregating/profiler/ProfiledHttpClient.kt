@@ -1,6 +1,5 @@
 package ru.fix.armeria.aggregating.profiler
 
-import com.linecorp.armeria.client.Client
 import com.linecorp.armeria.client.ClientRequestContext
 import com.linecorp.armeria.client.HttpClient
 import com.linecorp.armeria.client.SimpleDecoratingHttpClient
@@ -38,7 +37,7 @@ class ProfiledHttpClient private constructor(delegate: HttpClient, private val p
             profileOnRequestCompleted(req, log)
         }
 
-        return delegate<Client<HttpRequest, HttpResponse>>().execute(ctx, req)
+        return unwrap().execute(ctx, req)
     }
 
     private fun startProfiledCallBeforeConnectionEstablished(req: HttpRequest, ctx: ClientRequestContext) {
@@ -52,45 +51,43 @@ class ProfiledHttpClient private constructor(delegate: HttpClient, private val p
                 )
             )
         ).apply {
-            ctx.setAttr(HTTP_CONNECT_PROFILED_CALL, this)
+            ctx.setAttr(HTTP_CONNECT_PROFILED_CALL, ConnectProfiledCall(this, System.currentTimeMillis()))
             start()
         }
     }
 
     private fun profileOnConnectionEstablished(req: HttpRequest, log: RequestOnlyLog) {
         log.context().attr(HTTP_CONNECT_PROFILED_CALL)?.let {
-            it.stop()
+            it.profiledCall.stop()
             log.context().setAttr(HTTP_CONNECT_PROFILED_CALL, null)
+
+            // If connection was unsuccessful, there is no need to profile it by "connected" metric,
+            // since it will have same tag set as "connect" metric.
+            if (log.channel() != null) {
+                profiler.profiledCall(
+                    Identity(
+                        /**
+                         * TODO After https://github.com/ru-fix/aggregating-profiler/issues/42 resolved,
+                         *  there will be no need to write separate connected metric
+                         */
+                        Metrics.HTTP_CONNECTED,
+                        MetricTags.build(
+                            path = req.path(),
+                            method = req.method(),
+                            remoteInetSocketAddress = log.context().endpointInetSockedAddress,
+                            protocol = log.sessionProtocol(),
+                            channel = log.channel()
+                        )
+                    )
+                /*
+                 * It has been discovered by tests, that when retry decorator placed before profiling one,
+                 * then connectionTimings is not available on last request. That is why we declare additional option.
+                 */
+                ).call(log.connectionTimings()?.connectionAcquisitionStartTimeMillis() ?: it.connectStartTimestamp)
+            }
         }
 
-        // If connection was unsuccessful, there is no need to profile it by "connected" metric,
-        // since it will have same tag set as "connect" metric.
-        log.channel()?.run {
-            profiler.profiledCall(
-                Identity(
-                    /**
-                     * TODO After https://github.com/ru-fix/aggregating-profiler/issues/42 resolved,
-                     *  there will be no need to write separate connected metric
-                     */
-                    Metrics.HTTP_CONNECTED,
-                    MetricTags.build(
-                        path = req.path(),
-                        method = req.method(),
-                        remoteInetSocketAddress = log.context().endpointInetSockedAddress,
-                        protocol = log.sessionProtocol(),
-                        channel = log.channel()
-                    )
-                )
-                /*
-                 * USEFUL INFORMATION
-                 * it has been discovered by tests, that
-                 * RequestOnlyLog.requestStartTime always <= RequestOnlyLog.connectionTimings().connectionAcquisitionStartTime
-                 *
-                 * That is why first value is used here to profile time from the absolute request start to a moment
-                 * when connection acquired.
-                 */
-            ).call(log.requestStartTimeMillis())
-        }
+
     }
 
     private fun profileOnRequestCompleted(req: HttpRequest, log: RequestLog) {
@@ -144,17 +141,17 @@ class ProfiledHttpClient private constructor(delegate: HttpClient, private val p
             }
         }
 
-        log.connectionTimings()?.let {
-            logger.debug { "Request log = $log; connections timings = $it" }
-        }
+        logger.debug { "Request log = $log; connections timings = ${log.connectionTimings()}" }
     }
 
     companion object {
 
         private val logger = logger()
-        private val HTTP_CONNECT_PROFILED_CALL = AttributeKey.valueOf<ProfiledCall>(
+        private val HTTP_CONNECT_PROFILED_CALL = AttributeKey.valueOf<ConnectProfiledCall>(
             ProfiledHttpClient::class.java, "HTTP_CONNECT_PROFILED_CALL"
         )
+
+        private data class ConnectProfiledCall(val profiledCall: ProfiledCall, val connectStartTimestamp: Long)
 
         @JvmStatic
         fun newDecorator(profiler: Profiler): Function<HttpClient, HttpClient> =
