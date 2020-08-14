@@ -27,7 +27,7 @@ abstract class RateLimitingClient<RequestT : Request, ResponseT : Response>(
     override fun execute(ctx: ClientRequestContext, req: RequestT): ResponseT {
         val deferredResult = rateLimiterDispatcher.compose(
             {
-                delegate<Client<RequestT, ResponseT>>().execute(ctx, req)
+                unwrap().execute(ctx, req)
             },
             { response, asyncResultCallback ->
                 response.whenComplete().handle { _, _ -> asyncResultCallback.onAsyncResultCompleted() }

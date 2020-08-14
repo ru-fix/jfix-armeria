@@ -7,15 +7,18 @@ import com.linecorp.armeria.common.HttpData
 import com.linecorp.armeria.common.HttpResponse
 import com.linecorp.armeria.common.HttpStatus
 import com.linecorp.armeria.common.ResponseHeaders
-import com.linecorp.armeria.testing.junit.server.mock.MockWebServerExtension
 import io.kotest.assertions.assertSoftly
+import io.kotest.assertions.timing.eventually
 import io.kotest.matchers.doubles.shouldBeBetween
+import io.kotest.matchers.nulls.shouldNotBeNull
+import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
-import kotlinx.coroutines.*
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.future.asDeferred
-import mu.KLogging
-import org.awaitility.Duration.ONE_SECOND
-import org.awaitility.kotlin.*
+import org.apache.logging.log4j.kotlin.Logging
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import retrofit2.create
@@ -23,6 +26,9 @@ import retrofit2.http.GET
 import ru.fix.aggregating.profiler.AggregatingProfiler
 import ru.fix.aggregating.profiler.Identity
 import ru.fix.aggregating.profiler.Profiler
+import ru.fix.armeria.commons.testing.ArmeriaMockServer
+import ru.fix.armeria.limiter.ProfilerTestUtils.indicatorWithNameEnding
+import ru.fix.armeria.limiter.ProfilerTestUtils.profiledCallReportWithNameEnding
 import ru.fix.dynamic.property.api.DynamicProperty
 import ru.fix.stdlib.concurrency.threads.NamedExecutors
 import ru.fix.stdlib.ratelimiter.ConfigurableRateLimiter
@@ -31,15 +37,19 @@ import java.net.URI
 import java.time.Duration
 import java.util.concurrent.CompletableFuture
 import java.util.function.Supplier
+import kotlin.time.ExperimentalTime
+import kotlin.time.seconds
 
-private typealias MockServerCreatorResult = Pair<AutoCloseable, URI>
-private typealias MockServerCreator = (Int) -> MockServerCreatorResult
+private typealias MockServerStopper = suspend () -> Unit
+private typealias MockServerCreatorResult = Pair<URI, MockServerStopper>
+private typealias MockServerCreator = suspend (Int) -> MockServerCreatorResult
 private typealias ClientCreator<ClientT> = (URI, RateLimitedDispatcher, Profiler) -> ClientT
 private typealias ClientWithProfiledCallCreator<ClientT>
         = (DecoratingHttpClientFunction, URI, RateLimitedDispatcher, Profiler) -> ClientT
 
 private typealias ClientToServerLoadEmulator<ClientT> = suspend (Int, ClientT) -> Unit
 
+@ExperimentalTime
 internal class RateLimitingClientTest {
 
     @Test
@@ -60,11 +70,13 @@ internal class RateLimitingClientTest {
     }
 
     @Test
-    @Disabled("""
+    @Disabled(
+        """
 Disabled due to bug in armeria (TODO provide issue to armeria).
 When ArmeriaRetrofit with streaming(true) option used, then com.linecorp.armeria.common.Response#whenComplete 
 callback is not executed.
-""")
+"""
+    )
     suspend fun `request completion releases resources for 'retrofit streaming client'`() {
         `request completion releases resources`(
             rateLimiterName = "retrofit-streaming-client-test-release-limiter",
@@ -127,7 +139,10 @@ callback is not executed.
             requestsCount = 400,
             mockServerCreator = { requestsCount ->
                 mockServerWithResponsesDelayedByIndexMod(requestsCount).let {
-                    MockServerCreatorResult(it.start(), it.httpUri())
+                    it.start()
+                    MockServerCreatorResult(it.httpUri()) {
+                        it.stop()
+                    }
                 }
             },
             createHttpClientWithProfiledCall = { testProfiledCallDecorator, uri, rateLimitedDispatcher, _ ->
@@ -146,11 +161,13 @@ callback is not executed.
     }
 
     @Test
-    @Disabled("""
+    @Disabled(
+        """
 Disabled due to bug in armeria (TODO provide issue to armeria).
 When ArmeriaRetrofit with streaming(true) option used, then com.linecorp.armeria.common.Response#whenComplete 
 callback is not executed.
-""")
+"""
+    )
     suspend fun `RPS restricted by rate limiter dispatcher for 'streaming retrofit'`() {
         `emulate load to server with specified client and check throughput`<TestClient>(
             rateLimiterName = "retrofit-streaming-client-limiter",
@@ -159,7 +176,10 @@ callback is not executed.
             requestsCount = 400,
             mockServerCreator = { requestsCount ->
                 mockServerWithResponsesDelayedByIndexMod(requestsCount).let {
-                    MockServerCreatorResult(it.start(), it.httpUri())
+                    it.start()
+                    MockServerCreatorResult(it.httpUri()) {
+                        it.stop()
+                    }
                 }
             },
             createHttpClientWithProfiledCall = { testProfiledCallDecorator, uri, rateLimitedDispatcher, profiler ->
@@ -201,10 +221,13 @@ callback is not executed.
             requestsCount = 400,
             mockServerCreator = { requestsCount ->
                 mockServerWithResponsesDelayedByIndexMod(requestsCount).let {
-                    MockServerCreatorResult(it.start(), it.httpUri())
+                    it.start()
+                    MockServerCreatorResult(it.httpUri()) {
+                        it.stop()
+                    }
                 }
             },
-            createHttpClientWithProfiledCall = { testProfiledCallDecorator, uri, rateLimitedDispatcher, profiler ->
+            createHttpClientWithProfiledCall = { testProfiledCallDecorator, uri, rateLimitedDispatcher, _ ->
                 val baseWebClient = WebClient.builder(uri)
                     .decorator(testProfiledCallDecorator)
                     .decorator(
@@ -226,7 +249,7 @@ callback is not executed.
         )
     }
 
-    companion object : KLogging() {
+    companion object : Logging {
 
         const val TEST_METRIC_NAME = "test_metric"
 
@@ -246,7 +269,7 @@ callback is not executed.
             numberOfResponses: Int,
             requestIndexMod: Int = 10,
             smalledRequestDelayMs: Long = 100
-        ): MockWebServerExtension = MockWebServerExtension().apply {
+        ): ArmeriaMockServer = ArmeriaMockServer().apply {
             for (requestIndex in 1..numberOfResponses) {
                 val requestDelayMs = (requestIndex % requestIndexMod) * smalledRequestDelayMs
                 enqueue(
@@ -270,8 +293,8 @@ callback is not executed.
             emulateLoadFromClientToServer: ClientToServerLoadEmulator<ClientT>
         ) {
             val targetPermitsPerSecDouble = targetPermitsPerSec.toDouble()
-            val (autoCloseable, mockServerUri) = mockServerCreator(requestsCount)
-            autoCloseable.use {
+            val (mockServerUri, mockServerStopper) = mockServerCreator(requestsCount)
+            try {
                 val profiler = AggregatingProfiler()
                 val rateLimiter = ConfigurableRateLimiter(
                     rateLimiterName,
@@ -297,21 +320,24 @@ callback is not executed.
                         emulateLoadFromClientToServer(requestsCount, client)
                         logger.info { "Requests completed. Building profiler report..." }
 
-                        await atMost ONE_SECOND untilAsserted {
+                        eventually(1.seconds) {
                             val report = reporter.buildReportAndReset()
                             logger.info { "Report: $report" }
                             assertSoftly(report) {
-                                val testMetricCallReport =
-                                    profilerCallReports.single { it.identity.name.endsWith(TEST_METRIC_NAME) }
-                                testMetricCallReport.startThroughputAvg.shouldBeBetween(
-                                    targetPermitsPerSecDouble,
-                                    targetPermitsPerSecDouble,
-                                    targetPermitsPerSecDouble * 0.10
-                                )
+                                profiledCallReportWithNameEnding(TEST_METRIC_NAME) should {
+                                    it.shouldNotBeNull()
+                                    it.startThroughputAvg.shouldBeBetween(
+                                        targetPermitsPerSecDouble,
+                                        targetPermitsPerSecDouble,
+                                        targetPermitsPerSecDouble * 0.25
+                                    )
+                                }
                                 indicators.indicatorWithNameEnding(ACTIVE_ASYNC_OPERATIONS_METRIC) shouldBe 0
                             }
                         }
                     }
+            } finally {
+                mockServerStopper()
             }
         }
 
@@ -321,10 +347,11 @@ callback is not executed.
             execute: ClientT.() -> Deferred<*>
         ) {
             val responseFuture = CompletableFuture<HttpResponse>()
-            val mockServer = MockWebServerExtension().apply {
+            val mockServer = ArmeriaMockServer().apply {
                 enqueue(HttpResponse.from(responseFuture))
             }
-            mockServer.start().use {
+            mockServer.start()
+            try {
                 val profiler = AggregatingProfiler()
                 val rateLimiter = ConfigurableRateLimiter(
                     rateLimiterName,
@@ -337,20 +364,25 @@ callback is not executed.
                         val profilerReporter = profiler.createReporter()
 
                         val requestFuture = client.execute()
-                        delay(200)
-                        await atMost ONE_SECOND untilCallTo {
-                            profilerReporter.buildReportAndReset().indicators
-                        } has {
-                            indicatorWithNameEnding(ACTIVE_ASYNC_OPERATIONS_METRIC) == 1L
+                        eventually(1.seconds) {
+                            profilerReporter.buildReportAndReset() should { report ->
+                                report.indicatorWithNameEnding(ACTIVE_ASYNC_OPERATIONS_METRIC) should {
+                                    it shouldBe 1
+                                }
+                            }
                         }
                         responseFuture.complete(HttpResponse.of(HttpStatus.OK))
                         requestFuture.await()
-                        await atMost ONE_SECOND untilCallTo {
-                            profilerReporter.buildReportAndReset().indicators
-                        } has {
-                            indicatorWithNameEnding(ACTIVE_ASYNC_OPERATIONS_METRIC) == 0L
+                        eventually(1.seconds) {
+                            profilerReporter.buildReportAndReset() should { report ->
+                                report.indicatorWithNameEnding(ACTIVE_ASYNC_OPERATIONS_METRIC) should {
+                                    it shouldBe 0
+                                }
+                            }
                         }
                     }
+            } finally {
+                mockServer.stop()
             }
         }
 

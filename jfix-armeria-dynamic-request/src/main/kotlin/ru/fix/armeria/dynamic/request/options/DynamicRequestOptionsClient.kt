@@ -26,7 +26,7 @@ class DynamicRequestOptionsClient<RequestT : Request, ResponseT : Response>(
     override fun execute(ctx: ClientRequestContext, req: RequestT): ResponseT {
         ctx.setWriteTimeoutMillis(writeTimeoutProperty.get())
         ctx.setResponseTimeoutMillis(readTimeoutProperty.get())
-        return delegate<Client<RequestT, ResponseT>>().execute(ctx, req)
+        return unwrap().execute(ctx, req)
     }
 
     companion object {
