@@ -19,7 +19,6 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.future.asDeferred
 import org.apache.logging.log4j.kotlin.Logging
-import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import retrofit2.create
 import retrofit2.http.GET
@@ -70,13 +69,6 @@ internal class RateLimitingClientTest {
     }
 
     @Test
-    @Disabled(
-        """
-Disabled due to bug in armeria (TODO provide issue to armeria).
-When ArmeriaRetrofit with streaming(true) option used, then com.linecorp.armeria.common.Response#whenComplete 
-callback is not executed.
-"""
-    )
     suspend fun `request completion releases resources for 'retrofit streaming client'`() {
         `request completion releases resources`(
             rateLimiterName = "retrofit-streaming-client-test-release-limiter",
@@ -161,13 +153,6 @@ callback is not executed.
     }
 
     @Test
-    @Disabled(
-        """
-Disabled due to bug in armeria (TODO provide issue to armeria).
-When ArmeriaRetrofit with streaming(true) option used, then com.linecorp.armeria.common.Response#whenComplete 
-callback is not executed.
-"""
-    )
     suspend fun `RPS restricted by rate limiter dispatcher for 'streaming retrofit'`() {
         `emulate load to server with specified client and check throughput`<TestClient>(
             rateLimiterName = "retrofit-streaming-client-limiter",
