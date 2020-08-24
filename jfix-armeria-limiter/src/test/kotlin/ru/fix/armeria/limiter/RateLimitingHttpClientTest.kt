@@ -7,7 +7,6 @@ import com.linecorp.armeria.common.HttpData
 import com.linecorp.armeria.common.HttpResponse
 import com.linecorp.armeria.common.HttpStatus
 import com.linecorp.armeria.common.ResponseHeaders
-import io.kotest.assertions.assertSoftly
 import io.kotest.assertions.timing.eventually
 import io.kotest.matchers.doubles.shouldBeBetween
 import io.kotest.matchers.nulls.shouldNotBeNull
@@ -306,19 +305,25 @@ internal class RateLimitingClientTest {
                         logger.info { "Requests completed. Building profiler report..." }
 
                         eventually(1.seconds) {
-                            val report = reporter.buildReportAndReset()
-                            logger.info { "Report: $report" }
-                            assertSoftly(report) {
-                                profiledCallReportWithNameEnding(TEST_METRIC_NAME) should {
-                                    it.shouldNotBeNull()
-                                    it.startThroughputAvg.shouldBeBetween(
-                                        targetPermitsPerSecDouble,
-                                        targetPermitsPerSecDouble,
-                                        targetPermitsPerSecDouble * 0.25
-                                    )
-                                }
-                                indicators.indicatorWithNameEnding(ACTIVE_ASYNC_OPERATIONS_METRIC) shouldBe 0
+                            val report = reporter.buildReportAndReset { metric, _ ->
+                                metric.name.endsWith(TEST_METRIC_NAME)
                             }
+                            logger.info { "Report: $report" }
+                            report.profiledCallReportWithNameEnding(TEST_METRIC_NAME) should {
+                                it.shouldNotBeNull()
+                                it.startThroughputAvg.shouldBeBetween(
+                                    targetPermitsPerSecDouble,
+                                    targetPermitsPerSecDouble,
+                                    targetPermitsPerSecDouble * 0.25
+                                )
+                            }
+                        }
+                        eventually(1.seconds) {
+                            val report = reporter.buildReportAndReset { metric, _ ->
+                                metric.name.endsWith(ACTIVE_ASYNC_OPERATIONS_METRIC)
+                            }
+                            logger.info { "Report: $report" }
+                            report.indicators.indicatorWithNameEnding(ACTIVE_ASYNC_OPERATIONS_METRIC) shouldBe 0
                         }
                     }
             } finally {
