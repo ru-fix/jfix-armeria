@@ -7,7 +7,6 @@ import com.linecorp.armeria.common.HttpData
 import com.linecorp.armeria.common.HttpResponse
 import com.linecorp.armeria.common.HttpStatus
 import com.linecorp.armeria.common.ResponseHeaders
-import io.kotest.assertions.assertSoftly
 import io.kotest.assertions.timing.eventually
 import io.kotest.matchers.doubles.shouldBeBetween
 import io.kotest.matchers.nulls.shouldNotBeNull
@@ -19,7 +18,6 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.future.asDeferred
 import org.apache.logging.log4j.kotlin.Logging
-import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import retrofit2.create
 import retrofit2.http.GET
@@ -70,13 +68,6 @@ internal class RateLimitingClientTest {
     }
 
     @Test
-    @Disabled(
-        """
-Disabled due to bug in armeria (TODO provide issue to armeria).
-When ArmeriaRetrofit with streaming(true) option used, then com.linecorp.armeria.common.Response#whenComplete 
-callback is not executed.
-"""
-    )
     suspend fun `request completion releases resources for 'retrofit streaming client'`() {
         `request completion releases resources`(
             rateLimiterName = "retrofit-streaming-client-test-release-limiter",
@@ -161,13 +152,6 @@ callback is not executed.
     }
 
     @Test
-    @Disabled(
-        """
-Disabled due to bug in armeria (TODO provide issue to armeria).
-When ArmeriaRetrofit with streaming(true) option used, then com.linecorp.armeria.common.Response#whenComplete 
-callback is not executed.
-"""
-    )
     suspend fun `RPS restricted by rate limiter dispatcher for 'streaming retrofit'`() {
         `emulate load to server with specified client and check throughput`<TestClient>(
             rateLimiterName = "retrofit-streaming-client-limiter",
@@ -321,19 +305,25 @@ callback is not executed.
                         logger.info { "Requests completed. Building profiler report..." }
 
                         eventually(1.seconds) {
-                            val report = reporter.buildReportAndReset()
-                            logger.info { "Report: $report" }
-                            assertSoftly(report) {
-                                profiledCallReportWithNameEnding(TEST_METRIC_NAME) should {
-                                    it.shouldNotBeNull()
-                                    it.startThroughputAvg.shouldBeBetween(
-                                        targetPermitsPerSecDouble,
-                                        targetPermitsPerSecDouble,
-                                        targetPermitsPerSecDouble * 0.25
-                                    )
-                                }
-                                indicators.indicatorWithNameEnding(ACTIVE_ASYNC_OPERATIONS_METRIC) shouldBe 0
+                            val report = reporter.buildReportAndReset { metric, _ ->
+                                metric.name.endsWith(TEST_METRIC_NAME)
                             }
+                            logger.info { "Report: $report" }
+                            report.profiledCallReportWithNameEnding(TEST_METRIC_NAME) should {
+                                it.shouldNotBeNull()
+                                it.startThroughputAvg.shouldBeBetween(
+                                    targetPermitsPerSecDouble,
+                                    targetPermitsPerSecDouble,
+                                    targetPermitsPerSecDouble * 0.25
+                                )
+                            }
+                        }
+                        eventually(1.seconds) {
+                            val report = reporter.buildReportAndReset { metric, _ ->
+                                metric.name.endsWith(ACTIVE_ASYNC_OPERATIONS_METRIC)
+                            }
+                            logger.info { "Report: $report" }
+                            report.indicators.indicatorWithNameEnding(ACTIVE_ASYNC_OPERATIONS_METRIC) shouldBe 0
                         }
                     }
             } finally {

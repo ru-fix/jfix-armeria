@@ -17,7 +17,7 @@ object Vers {
     const val jfix_stdlib = "3.0.9"
 
     // Armeria
-    const val armeria = "0.99.9"
+    const val armeria = "1.0.0"
 
     // Logging
     const val log4j = "2.12.0"
@@ -28,7 +28,6 @@ object Vers {
     const val kotest = "4.1.3"
     const val mockk = "1.10.0"
     const val corounit = "1.0.32"
-    const val awailability = "3.1.6"
 }
 
 object Libs {
@@ -76,10 +75,10 @@ object Libs {
 enum class Projs {
 
     `aggregating-profiler`,
-    `commons`,
+    commons,
     `commons-testing`,
     `dynamic-request`,
-    `limiter`;
+    limiter;
 
     val dependency get(): String = ":jfix-armeria-$name"
 }
