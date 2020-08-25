@@ -387,15 +387,15 @@ internal class ProfiledHttpClientTest {
         val profilerReporter = profiler.createReporter()
         val mockServer = ArmeriaMockServer().start()
         try {
-            mockServer.enqueue(
+            mockServer.enqueue {
                 HttpResponse.delayed(
                     HttpResponse.of(HttpStatus.SERVICE_UNAVAILABLE),
                     Duration.ofMillis(500)
                 )
-            )
-            mockServer.enqueue(
+            }
+            mockServer.enqueue {
                 HttpResponse.delayed(HttpResponse.of(HttpStatus.OK), Duration.ofMillis(200))
-            )
+            }
             val client = WebClient
                 .builder(
                     SessionProtocol.HTTP,
@@ -521,17 +521,17 @@ internal class ProfiledHttpClientTest {
                 mockServer.launchStart(),
                 mockServer2.launchStart()
             ).joinAll()
-            mockServer.enqueue(
+            mockServer.enqueue {
                 HttpResponse.delayed(
                     HttpResponse.of(HttpStatus.SERVICE_UNAVAILABLE),
                     Duration.ofMillis(firstRequestDelayMillis)
                 )
-            )
-            mockServer2.enqueue(
+            }
+            mockServer2.enqueue {
                 HttpResponse.delayed(
                     HttpResponse.of(HttpStatus.OK), Duration.ofMillis(lastRequestDelayMillis)
                 )
-            )
+            }
             val client = WebClient
                 .builder(
                     SessionProtocol.HTTP,
@@ -623,18 +623,18 @@ internal class ProfiledHttpClientTest {
                 mockServer.launchStart(),
                 mockServer2.launchStart()
             ).joinAll()
-            mockServer.enqueue(
+            mockServer.enqueue {
                 HttpResponse.delayed(
                     HttpResponse.of(HttpStatus.SERVICE_UNAVAILABLE),
                     Duration.ofMillis(firstRequestDelayMillis)
                 )
-            )
-            mockServer2.enqueue(
+            }
+            mockServer2.enqueue {
                 HttpResponse.delayed(
                     HttpResponse.of(HttpStatus.SERVICE_UNAVAILABLE),
                     Duration.ofMillis(lastRequestDelayMillis)
                 )
-            )
+            }
             val client = WebClient
                 .builder(
                     SessionProtocol.HTTP,

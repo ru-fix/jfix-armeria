@@ -58,7 +58,7 @@ internal class ProfiledConnectionPoolListenerTest {
                     .idleTimeout(Duration.ofMillis(connectionTtlMs))
                     .build()
             ).build()
-        mockServer.enqueue(HttpResponse.of(HttpStatus.OK))
+        mockServer.enqueue { HttpResponse.of(HttpStatus.OK) }
 
         val reportBeforeClientCall = profilerReporter.buildReportAndReset()
         client.get("/").aggregate().await()

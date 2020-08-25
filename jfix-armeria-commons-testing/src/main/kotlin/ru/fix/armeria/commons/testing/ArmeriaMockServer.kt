@@ -20,7 +20,7 @@ class ArmeriaMockServer(
     serverBuilderCustomizer: ServerBuilder.() -> ServerBuilder = { this }
 ) {
 
-    private val mockResponses: ConcurrentLinkedQueue<HttpResponse> = ConcurrentLinkedQueue()
+    private val mockResponses: ConcurrentLinkedQueue<() -> HttpResponse> = ConcurrentLinkedQueue()
 
     private val server = Server.builder()
         .http(0)
@@ -29,7 +29,7 @@ class ArmeriaMockServer(
         .workerGroup(EventLoopGroups.newEventLoopGroup(1, "$mockServerName-eventloop-worker"), true)
         .service("/") { _, req ->
             HttpResponse.from(req.aggregate().thenApply {
-                mockResponses.poll()
+                mockResponses.poll()?.invoke()
                     ?: throw IllegalStateException(
                         "No mock response configured. Did you call enqueueResponse? Request: $it")
             })
@@ -55,8 +55,8 @@ class ArmeriaMockServer(
 
     fun launchStop(): Job = GlobalScope.launch { stop() }
 
-    fun enqueue(httpResponse: HttpResponse) {
-        mockResponses.add(httpResponse)
+    fun enqueue(httpResponseCreator: () -> HttpResponse) {
+        mockResponses.add(httpResponseCreator)
     }
 
     fun port(protocol: SessionProtocol) = server.activeLocalPort(protocol)

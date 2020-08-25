@@ -38,8 +38,9 @@ internal class DynamicRequestOptionsClientTest {
             .decorator(
                 DynamicRequestOptionsClient.newHttpDecorator(readTimeoutProperty, DynamicProperty.of(0))
             ).build()
-        fun delayedResponse() =
+        fun delayedResponse(): () -> HttpResponse = {
             HttpResponse.delayed(HttpResponse.of(HttpStatus.OK), Duration.ofMillis(serverResponseDelay))
+        }
 
         // no timeout happened
         mockServer.enqueue(delayedResponse())

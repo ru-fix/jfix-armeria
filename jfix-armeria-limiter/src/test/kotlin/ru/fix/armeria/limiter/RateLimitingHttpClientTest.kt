@@ -256,14 +256,14 @@ internal class RateLimitingClientTest {
         ): ArmeriaMockServer = ArmeriaMockServer().apply {
             for (requestIndex in 1..numberOfResponses) {
                 val requestDelayMs = (requestIndex % requestIndexMod) * smalledRequestDelayMs
-                enqueue(
+                enqueue {
                     HttpResponse.delayed(
                         HttpResponse.of(
                             ResponseHeaders.of(HttpStatus.OK), HttpData.ofUtf8("$requestIndex")
                         ),
                         Duration.ofMillis(requestDelayMs)
                     )
-                )
+                }
             }
         }
 
@@ -338,7 +338,7 @@ internal class RateLimitingClientTest {
         ) {
             val responseFuture = CompletableFuture<HttpResponse>()
             val mockServer = ArmeriaMockServer().apply {
-                enqueue(HttpResponse.from(responseFuture))
+                enqueue { HttpResponse.from(responseFuture) }
             }
             mockServer.start()
             try {
