@@ -58,7 +58,7 @@ internal class ProfiledConnectionPoolListenerTest {
                     .idleTimeout(Duration.ofMillis(connectionTtlMs))
                     .build()
             ).build()
-        mockServer.enqueue(HttpResponse.of(HttpStatus.OK))
+        mockServer.enqueue { HttpResponse.of(HttpStatus.OK) }
 
         val reportBeforeClientCall = profilerReporter.buildReportAndReset()
         client.get("/").aggregate().await()
@@ -67,8 +67,8 @@ internal class ProfiledConnectionPoolListenerTest {
             reportBeforeClientCall.indicatorWithNameEnding(Metrics.ACTIVE_CHANNELS_COUNT) shouldBe 0
             profilerReporter.buildReportAndReset().profiledCallReportWithNameEnding(Metrics.CONNECTION_LIFETIME)
                 .should {
-                    shouldNotBeNull()
-                    it!!.identity.tags shouldContainExactly mapOf(
+                    it.shouldNotBeNull()
+                    it.identity.tags shouldContainExactly mapOf(
                         MetricTags.REMOTE_HOST to LocalHost.HOSTNAME.value,
                         MetricTags.REMOTE_ADDRESS to LocalHost.IP.value,
                         MetricTags.REMOTE_PORT to mockServer.httpPort().toString(),
@@ -81,28 +81,35 @@ internal class ProfiledConnectionPoolListenerTest {
         eventually((connectionTtlMs / 2).milliseconds) {
             profilerReporter.buildReportAndReset().indicatorWithNameEnding(Metrics.ACTIVE_CHANNELS_COUNT) shouldBe 1
         }
-        eventually(3.seconds) {
-            /**
-             * connection destroyed and:
-             * - active_channels_count indicator decreased to 0
-             * - connection lifetime metric is profiled
-             */
-            val report = profilerReporter.buildReportAndReset()
-            logger.trace { "Report: $report" }
-            assertSoftly(report) {
-                indicatorWithNameEnding(Metrics.ACTIVE_CHANNELS_COUNT) shouldBe 0
-                profiledCallReportWithNameEnding(Metrics.CONNECTION_LIFETIME).should {
-                    shouldNotBeNull()
+        /**
+         * connection destroyed and:
+         * - active_channels_count indicator decreased to 0
+         * - connection lifetime metric is profiled
+         */
+        eventually(2.seconds) {
 
-                    it!!.latencyMax.shouldBeBetween(
-                        (connectionTtlMs * 0.75).toLong(),
-                        connectionTtlMs * 2
-                    )
-                }
+            val report = profilerReporter.buildReportAndReset { metric, _ ->
+                metric.name.endsWith(Metrics.ACTIVE_CHANNELS_COUNT)
+            }
+            logger.trace { "Report: $report" }
+            report.indicatorWithNameEnding(Metrics.ACTIVE_CHANNELS_COUNT) shouldBe 0
+        }
+        eventually(1.seconds) {
+            val report = profilerReporter.buildReportAndReset { metric, _ ->
+                metric.name.endsWith(Metrics.CONNECTION_LIFETIME)
+            }
+            logger.trace { "Report: $report" }
+            report.profiledCallReportWithNameEnding(Metrics.CONNECTION_LIFETIME).should {
+                it.shouldNotBeNull()
+
+                it.latencyMax.shouldBeBetween(
+                    (connectionTtlMs * 0.75).toLong(),
+                    connectionTtlMs * 2
+                )
             }
         }
     }
 
-    companion object: Logging
+    companion object : Logging
 
 }

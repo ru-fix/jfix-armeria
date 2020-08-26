@@ -10,9 +10,6 @@ import com.linecorp.armeria.client.retry.RetryingClient
 import com.linecorp.armeria.common.*
 import io.kotest.assertions.assertSoftly
 import io.kotest.assertions.timing.eventually
-import io.kotest.inspectors.forAll
-import io.kotest.inspectors.forOne
-import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.longs.shouldBeGreaterThan
 import io.kotest.matchers.maps.shouldContainExactly
 import io.kotest.matchers.nulls.shouldNotBeNull
@@ -34,7 +31,6 @@ import org.junit.jupiter.params.provider.ArgumentsSource
 import ru.fix.aggregating.profiler.AggregatingProfiler
 import ru.fix.armeria.aggregating.profiler.ProfilerTestUtils.EPOLL_SOCKET_CHANNEL
 import ru.fix.armeria.aggregating.profiler.ProfilerTestUtils.profiledCallReportWithNameEnding
-import ru.fix.armeria.aggregating.profiler.ProfilerTestUtils.profiledCallReportsWithNameEnding
 import ru.fix.armeria.commons.On503AndConnectExceptionRetryRule
 import ru.fix.armeria.commons.testing.ArmeriaMockServer
 import ru.fix.armeria.commons.testing.LocalHost
@@ -281,9 +277,9 @@ internal class ProfiledHttpClientTest {
 
             { it.testCaseName }
         ) { (_, setupMockForError: suspend () -> ErrorProfilingTest.Case.MockServer,
-                getExpectedErrorMetricTags: (URI) -> List<MetricTag>,
-                latencyMetricRequired: Boolean,
-                webClientBuilderCustomizer: WebClientBuilder.() -> WebClientBuilder) ->
+                                          getExpectedErrorMetricTags: (URI) -> List<MetricTag>,
+                                          latencyMetricRequired: Boolean,
+                                          webClientBuilderCustomizer: WebClientBuilder.() -> WebClientBuilder) ->
             runBlocking<Unit> {
 
                 val profiler = AggregatingProfiler()
@@ -387,15 +383,15 @@ internal class ProfiledHttpClientTest {
         val profilerReporter = profiler.createReporter()
         val mockServer = ArmeriaMockServer().start()
         try {
-            mockServer.enqueue(
+            mockServer.enqueue {
                 HttpResponse.delayed(
                     HttpResponse.of(HttpStatus.SERVICE_UNAVAILABLE),
                     Duration.ofMillis(500)
                 )
-            )
-            mockServer.enqueue(
+            }
+            mockServer.enqueue {
                 HttpResponse.delayed(HttpResponse.of(HttpStatus.OK), Duration.ofMillis(200))
-            )
+            }
             val client = WebClient
                 .builder(
                     SessionProtocol.HTTP,
@@ -449,38 +445,46 @@ internal class ProfiledHttpClientTest {
                 }
             }
             eventually(1.seconds) {
-                profilerReporter.buildReportAndReset { metric, _ -> metric.name == Metrics.HTTP_ERROR } should { report ->
-                    logger.trace { "Report: $report" }
-                    report.profiledCallReportsWithNameEnding(Metrics.HTTP_ERROR) should { errorCallsReports ->
-                        errorCallsReports.shouldHaveSize(2)
+                val report = profilerReporter.buildReportAndReset { metric, _ ->
+                    metric.name == Metrics.HTTP_ERROR
+                            && metric.tags[MetricTags.ERROR_TYPE]?.let { it == "connect_refused" } ?: false
+                }
+                logger.trace { "Report: $report" }
+                report.profiledCallReportWithNameEnding(Metrics.HTTP_ERROR) should {
+                    it.shouldNotBeNull()
 
-                        errorCallsReports.forAll {
-                            it.stopSum shouldBe 1
-                        }
-                        errorCallsReports.forOne {
-                            it.identity.tags shouldContainExactly mapOf(
-                                MetricTags.PATH to "/",
-                                MetricTags.METHOD to "GET",
-                                MetricTags.PROTOCOL to "http",
-                                MetricTags.IS_MULTIPLEX_PROTOCOL to false.toString(),
-                                MetricTags.ERROR_TYPE to "connect_refused"
-                            )
-                        }
-                        errorCallsReports.forOne {
-                            it.identity.tags shouldContainExactly mapOf(
-                                MetricTags.PATH to "/",
-                                MetricTags.METHOD to "GET",
-                                MetricTags.PROTOCOL to "h2c",
-                                MetricTags.IS_MULTIPLEX_PROTOCOL to true.toString(),
-                                MetricTags.CHANNEL_CLASS to EPOLL_SOCKET_CHANNEL,
-                                MetricTags.REMOTE_ADDRESS to LocalHost.IP.value,
-                                MetricTags.REMOTE_HOST to LocalHost.HOSTNAME.value,
-                                MetricTags.REMOTE_PORT to mockServer.httpPort().toString(),
-                                MetricTags.ERROR_TYPE to "invalid_status",
-                                MetricTags.RESPONSE_STATUS to "503"
-                            )
-                        }
-                    }
+                    it.stopSum shouldBe 1
+                    it.identity.tags shouldContainExactly mapOf(
+                        MetricTags.PATH to "/",
+                        MetricTags.METHOD to "GET",
+                        MetricTags.PROTOCOL to "http",
+                        MetricTags.IS_MULTIPLEX_PROTOCOL to false.toString(),
+                        MetricTags.ERROR_TYPE to "connect_refused"
+                    )
+                }
+            }
+            eventually(1.seconds) {
+                val report = profilerReporter.buildReportAndReset { metric, _ ->
+                    metric.name == Metrics.HTTP_ERROR
+                            && metric.tags[MetricTags.ERROR_TYPE]?.let { it == "invalid_status" } ?: false
+                }
+                logger.trace { "Report: $report" }
+                report.profiledCallReportWithNameEnding(Metrics.HTTP_ERROR) should {
+                    it.shouldNotBeNull()
+
+                    it.stopSum shouldBe 1
+                    it.identity.tags shouldContainExactly mapOf(
+                        MetricTags.PATH to "/",
+                        MetricTags.METHOD to "GET",
+                        MetricTags.PROTOCOL to "h2c",
+                        MetricTags.IS_MULTIPLEX_PROTOCOL to true.toString(),
+                        MetricTags.CHANNEL_CLASS to EPOLL_SOCKET_CHANNEL,
+                        MetricTags.REMOTE_ADDRESS to LocalHost.IP.value,
+                        MetricTags.REMOTE_HOST to LocalHost.HOSTNAME.value,
+                        MetricTags.REMOTE_PORT to mockServer.httpPort().toString(),
+                        MetricTags.ERROR_TYPE to "invalid_status",
+                        MetricTags.RESPONSE_STATUS to "503"
+                    )
                 }
             }
             eventually(1.seconds) {
@@ -521,17 +525,17 @@ internal class ProfiledHttpClientTest {
                 mockServer.launchStart(),
                 mockServer2.launchStart()
             ).joinAll()
-            mockServer.enqueue(
+            mockServer.enqueue {
                 HttpResponse.delayed(
                     HttpResponse.of(HttpStatus.SERVICE_UNAVAILABLE),
                     Duration.ofMillis(firstRequestDelayMillis)
                 )
-            )
-            mockServer2.enqueue(
+            }
+            mockServer2.enqueue {
                 HttpResponse.delayed(
                     HttpResponse.of(HttpStatus.OK), Duration.ofMillis(lastRequestDelayMillis)
                 )
-            )
+            }
             val client = WebClient
                 .builder(
                     SessionProtocol.HTTP,
@@ -623,18 +627,18 @@ internal class ProfiledHttpClientTest {
                 mockServer.launchStart(),
                 mockServer2.launchStart()
             ).joinAll()
-            mockServer.enqueue(
+            mockServer.enqueue {
                 HttpResponse.delayed(
                     HttpResponse.of(HttpStatus.SERVICE_UNAVAILABLE),
                     Duration.ofMillis(firstRequestDelayMillis)
                 )
-            )
-            mockServer2.enqueue(
+            }
+            mockServer2.enqueue {
                 HttpResponse.delayed(
                     HttpResponse.of(HttpStatus.SERVICE_UNAVAILABLE),
                     Duration.ofMillis(lastRequestDelayMillis)
                 )
-            )
+            }
             val client = WebClient
                 .builder(
                     SessionProtocol.HTTP,
@@ -659,51 +663,60 @@ internal class ProfiledHttpClientTest {
             client.get("/").aggregate().await()
 
             eventually(1.seconds) {
-                assertSoftly(profilerReporter.buildReportAndReset()) {
-                    profiledCallReportWithNameEnding(Metrics.HTTP_CONNECT) should {
-                        it.shouldNotBeNull()
+                val report = profilerReporter.buildReportAndReset { metric, _ -> metric.name == Metrics.HTTP_CONNECT }
+                report.profiledCallReportWithNameEnding(Metrics.HTTP_CONNECT) should {
+                    it.shouldNotBeNull()
 
-                        it.stopSum shouldBe 1
-                        it.identity.tags shouldContainExactly mapOf(
-                            MetricTags.PATH to "/",
-                            MetricTags.METHOD to "GET",
-                            MetricTags.PROTOCOL to "http",
-                            MetricTags.IS_MULTIPLEX_PROTOCOL to false.toString()
-                        )
-                    }
-                    profiledCallReportWithNameEnding(Metrics.HTTP_CONNECTED) should {
-                        it.shouldNotBeNull()
+                    it.stopSum shouldBe 1
+                    it.identity.tags shouldContainExactly mapOf(
+                        MetricTags.PATH to "/",
+                        MetricTags.METHOD to "GET",
+                        MetricTags.PROTOCOL to "http",
+                        MetricTags.IS_MULTIPLEX_PROTOCOL to false.toString()
+                    )
+                }
+            }
+            eventually(1.seconds) {
+                val report = profilerReporter.buildReportAndReset { metric, _ ->
+                    metric.name == Metrics.HTTP_CONNECTED
+                }
+                report.profiledCallReportWithNameEnding(Metrics.HTTP_CONNECTED) should {
+                    it.shouldNotBeNull()
 
-                        it.stopSum shouldBe 1
-                        it.identity.tags shouldContainExactly mapOf(
-                            MetricTags.PATH to "/",
-                            MetricTags.METHOD to "GET",
-                            MetricTags.PROTOCOL to "h2c",
-                            MetricTags.IS_MULTIPLEX_PROTOCOL to true.toString(),
-                            MetricTags.CHANNEL_CLASS to EPOLL_SOCKET_CHANNEL,
-                            MetricTags.REMOTE_ADDRESS to LocalHost.IP.value,
-                            MetricTags.REMOTE_HOST to LocalHost.HOSTNAME.value,
-                            MetricTags.REMOTE_PORT to expectedProfiledMockServer.httpPort().toString()
-                        )
-                    }
-                    profiledCallReportWithNameEnding(Metrics.HTTP_ERROR) should {
-                        it.shouldNotBeNull()
+                    it.stopSum shouldBe 1
+                    it.identity.tags shouldContainExactly mapOf(
+                        MetricTags.PATH to "/",
+                        MetricTags.METHOD to "GET",
+                        MetricTags.PROTOCOL to "h2c",
+                        MetricTags.IS_MULTIPLEX_PROTOCOL to true.toString(),
+                        MetricTags.CHANNEL_CLASS to EPOLL_SOCKET_CHANNEL,
+                        MetricTags.REMOTE_ADDRESS to LocalHost.IP.value,
+                        MetricTags.REMOTE_HOST to LocalHost.HOSTNAME.value,
+                        MetricTags.REMOTE_PORT to expectedProfiledMockServer.httpPort().toString()
+                    )
+                }
+            }
+            eventually(1.seconds) {
+                val report = profilerReporter.buildReportAndReset { metric, _ ->
+                    metric.name == Metrics.HTTP_ERROR
+                }
+                report.profiledCallReportWithNameEnding(Metrics.HTTP_ERROR) should {
+                    it.shouldNotBeNull()
 
-                        it.stopSum shouldBe 1
-                        it.identity.tags shouldContainExactly mapOf(
-                            MetricTags.PATH to "/",
-                            MetricTags.METHOD to "GET",
-                            MetricTags.PROTOCOL to "h2c",
-                            MetricTags.IS_MULTIPLEX_PROTOCOL to true.toString(),
-                            MetricTags.CHANNEL_CLASS to EPOLL_SOCKET_CHANNEL,
-                            MetricTags.REMOTE_ADDRESS to LocalHost.IP.value,
-                            MetricTags.REMOTE_HOST to LocalHost.HOSTNAME.value,
-                            MetricTags.REMOTE_PORT to expectedProfiledMockServer.httpPort().toString(),
-                            MetricTags.ERROR_TYPE to "invalid_status",
-                            MetricTags.RESPONSE_STATUS to "503"
-                        )
-                        it.latencyMax shouldBeGreaterThan firstRequestDelayMillis + lastRequestDelayMillis
-                    }
+                    it.stopSum shouldBe 1
+                    it.identity.tags shouldContainExactly mapOf(
+                        MetricTags.PATH to "/",
+                        MetricTags.METHOD to "GET",
+                        MetricTags.PROTOCOL to "h2c",
+                        MetricTags.IS_MULTIPLEX_PROTOCOL to true.toString(),
+                        MetricTags.CHANNEL_CLASS to EPOLL_SOCKET_CHANNEL,
+                        MetricTags.REMOTE_ADDRESS to LocalHost.IP.value,
+                        MetricTags.REMOTE_HOST to LocalHost.HOSTNAME.value,
+                        MetricTags.REMOTE_PORT to expectedProfiledMockServer.httpPort().toString(),
+                        MetricTags.ERROR_TYPE to "invalid_status",
+                        MetricTags.RESPONSE_STATUS to "503"
+                    )
+                    it.latencyMax shouldBeGreaterThan firstRequestDelayMillis + lastRequestDelayMillis
                 }
             }
         } finally {
