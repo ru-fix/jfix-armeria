@@ -9,6 +9,7 @@ import com.linecorp.armeria.common.HttpStatus
 import com.linecorp.armeria.common.ResponseHeaders
 import io.kotest.assertions.timing.eventually
 import io.kotest.matchers.doubles.shouldBeBetween
+import io.kotest.matchers.longs.shouldBeBetween
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
@@ -73,9 +74,8 @@ internal class RateLimitingClientTest {
             rateLimiterName = "retrofit-streaming-client-test-release-limiter",
             clientCreator = { uri, rateLimitedDispatcher, profiler ->
                 val callbackExecutor =
-                    NamedExecutors.newDynamicPool(
+                    NamedExecutors.newSingleThreadPool(
                         "retrofit-streaming-client-test-response-reading-pool",
-                        DynamicProperty.of(3),
                         profiler
                     )
                 val baseWebClient = WebClient.builder(uri)
@@ -311,10 +311,9 @@ internal class RateLimitingClientTest {
                             logger.info { "Report: $report" }
                             report.profiledCallReportWithNameEnding(TEST_METRIC_NAME) should {
                                 it.shouldNotBeNull()
-                                it.startThroughputAvg.shouldBeBetween(
-                                    targetPermitsPerSecDouble,
-                                    targetPermitsPerSecDouble,
-                                    targetPermitsPerSecDouble * 0.25
+                                it.startThroughputPerSecondMax.shouldBeBetween(
+                                    (targetPermitsPerSec * 0.9).toLong(),
+                                    (targetPermitsPerSec * 1.1).toLong()
                                 )
                             }
                         }
