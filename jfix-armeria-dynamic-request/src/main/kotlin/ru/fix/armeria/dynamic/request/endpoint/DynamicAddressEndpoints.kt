@@ -46,8 +46,8 @@ private abstract class BaseDynamicPropertyEndpointGroup<T : Any>(
     }
 
     override fun doCloseAsync(future: CompletableFuture<*>) {
-        super.doCloseAsync(future)
         propertySubscription.close()
+        super.doCloseAsync(future)
     }
 }
 
