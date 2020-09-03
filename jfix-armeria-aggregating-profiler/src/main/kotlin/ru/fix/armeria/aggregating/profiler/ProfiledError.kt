@@ -81,15 +81,17 @@ internal fun RequestLog.detectProfiledErrorIfAny(): ProfiledError? {
                 }
             }
         }
-        responseCause != null ->
-            when (responseCause) {
+        responseCause != null -> responseCause.unwrapUnprocessedExceptionIfNecessary().let {
+            when (it) {
+                is ConnectException -> ProfiledError.ConnectRefused
                 is ResponseTimeoutException -> ProfiledError.ResponseTimeout
                 is ClosedSessionException -> ProfiledError.ResponseClosedSession
                 is ClosedStreamException -> ProfiledError.ResponseClosedStream
                 else -> {
-                    ProfiledError.UnrecognizedError.WithCause.InResponse(responseCause)
+                    ProfiledError.UnrecognizedError.WithCause.InResponse(it)
                 }
             }
+        }
         status == HttpStatus.UNKNOWN -> {
             ProfiledError.UnrecognizedError.UnknownStatus
         }

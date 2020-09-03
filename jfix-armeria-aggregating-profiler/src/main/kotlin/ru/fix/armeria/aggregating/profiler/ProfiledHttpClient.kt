@@ -5,6 +5,7 @@ import com.linecorp.armeria.client.HttpClient
 import com.linecorp.armeria.client.SimpleDecoratingHttpClient
 import com.linecorp.armeria.common.HttpRequest
 import com.linecorp.armeria.common.HttpResponse
+import com.linecorp.armeria.common.RequestContext
 import com.linecorp.armeria.common.logging.RequestLog
 import com.linecorp.armeria.common.logging.RequestLogProperty
 import com.linecorp.armeria.common.logging.RequestOnlyLog
@@ -16,6 +17,7 @@ import ru.fix.aggregating.profiler.Profiler
 import ru.fix.armeria.commons.endpointInetSockedAddress
 import ru.fix.armeria.commons.knownResponseStatus
 import ru.fix.armeria.commons.sessionProtocol
+import java.net.InetSocketAddress
 import java.util.function.Function
 
 class ProfiledHttpClient private constructor(delegate: HttpClient, private val profiler: Profiler) :
@@ -47,7 +49,8 @@ class ProfiledHttpClient private constructor(delegate: HttpClient, private val p
                 MetricTags.build(
                     path = req.path(),
                     method = req.method(),
-                    protocol = ctx.sessionProtocol()
+                    protocol = ctx.sessionProtocol(),
+                    remoteInetSocketAddress = endpointInetSocketAddress(req, ctx)
                 )
             )
         ).apply {
@@ -55,6 +58,20 @@ class ProfiledHttpClient private constructor(delegate: HttpClient, private val p
             start()
         }
     }
+
+    private fun endpointInetSocketAddress(req: HttpRequest, reqContext: RequestContext): InetSocketAddress? =
+        reqContext.endpointInetSockedAddress
+            ?: req.authority()?.let {
+                val tokens = it.split(':')
+                if (tokens.size != 2) {
+                    logger.debug { "Unexpected request authority format: request=$req" }
+                    null
+                } else {
+                    val host = tokens[0]
+                    val port = tokens[1].toInt()
+                    InetSocketAddress(host, port)
+                }
+            }
 
     private fun profileOnConnectionEstablished(req: HttpRequest, log: RequestOnlyLog) {
         log.context().attr(HTTP_CONNECT_PROFILED_CALL)?.let {
@@ -79,10 +96,10 @@ class ProfiledHttpClient private constructor(delegate: HttpClient, private val p
                             channel = log.channel()
                         )
                     )
-                /*
-                 * It has been discovered by tests, that when retry decorator placed before profiling one,
-                 * then connectionTimings is not available on last request. That is why we declare additional option.
-                 */
+                    /*
+                     * It has been discovered by tests, that when retry decorator placed before profiling one,
+                     * then connectionTimings is not available on last request. That is why we declare additional option.
+                     */
                 ).call(log.connectionTimings()?.connectionAcquisitionStartTimeMillis() ?: it.connectStartTimestamp)
             }
         }
@@ -114,7 +131,7 @@ class ProfiledHttpClient private constructor(delegate: HttpClient, private val p
         val tags = MetricTags.build(
             path = req.path(),
             method = req.method(),
-            remoteInetSocketAddress = log.context().endpointInetSockedAddress,
+            remoteInetSocketAddress = endpointInetSocketAddress(req, log.context()),
             responseStatusCode = log.knownResponseStatus,
             protocol = log.sessionProtocol,
             channel = log.channel()

@@ -10,6 +10,8 @@ import com.linecorp.armeria.client.retry.RetryingClient
 import com.linecorp.armeria.common.*
 import io.kotest.assertions.assertSoftly
 import io.kotest.assertions.timing.eventually
+import io.kotest.inspectors.forOne
+import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.longs.shouldBeGreaterThan
 import io.kotest.matchers.maps.shouldContainExactly
 import io.kotest.matchers.nulls.shouldNotBeNull
@@ -31,7 +33,8 @@ import org.junit.jupiter.params.provider.ArgumentsSource
 import ru.fix.aggregating.profiler.AggregatingProfiler
 import ru.fix.armeria.aggregating.profiler.ProfilerTestUtils.EPOLL_SOCKET_CHANNEL
 import ru.fix.armeria.aggregating.profiler.ProfilerTestUtils.profiledCallReportWithNameEnding
-import ru.fix.armeria.commons.On503AndConnectExceptionRetryRule
+import ru.fix.armeria.aggregating.profiler.ProfilerTestUtils.profiledCallReportsWithNameEnding
+import ru.fix.armeria.commons.On503AndUnprocessedRetryRule
 import ru.fix.armeria.commons.testing.ArmeriaMockServer
 import ru.fix.armeria.commons.testing.LocalHost
 import ru.fix.stdlib.socket.SocketChecker
@@ -71,12 +74,12 @@ internal class ProfiledHttpClientTest {
                 MetricTags.METHOD to "GET",
                 MetricTags.PATH to path,
                 MetricTags.PROTOCOL to testCaseArguments.connectMetricTagProtocol,
-                MetricTags.IS_MULTIPLEX_PROTOCOL to testCaseArguments.connectMetricTagIsMultiplex.toString()
-            )
-            val expectedConnectedMetricTags = expectedConnectMetricTags + mapOf(
+                MetricTags.IS_MULTIPLEX_PROTOCOL to testCaseArguments.connectMetricTagIsMultiplex.toString(),
                 MetricTags.REMOTE_ADDRESS to LocalHost.IP.value,
                 MetricTags.REMOTE_HOST to LocalHost.HOSTNAME.value,
-                MetricTags.REMOTE_PORT to mockServer.httpPort().toString(),
+                MetricTags.REMOTE_PORT to mockServer.httpPort().toString()
+            )
+            val expectedConnectedMetricTags = expectedConnectMetricTags + mapOf(
                 //protocol and channel information are determined on this phase
                 MetricTags.PROTOCOL to testCaseArguments.otherMetricsTagProtocol,
                 MetricTags.IS_MULTIPLEX_PROTOCOL to testCaseArguments.otherMetricsTagIsMultiplex.toString(),
@@ -190,7 +193,10 @@ internal class ProfiledHttpClientTest {
                             MetricTags.PATH to ErrorProfilingTest.TEST_PATH,
                             MetricTags.METHOD to "GET",
                             MetricTags.PROTOCOL to "http",
-                            MetricTags.IS_MULTIPLEX_PROTOCOL to false.toString()
+                            MetricTags.IS_MULTIPLEX_PROTOCOL to false.toString(),
+                            MetricTags.REMOTE_ADDRESS to LocalHost.IP.value,
+                            MetricTags.REMOTE_HOST to LocalHost.HOSTNAME.value,
+                            MetricTags.REMOTE_PORT to it.port.toString()
                         )
                     },
                     latencyMetricRequired = true
@@ -392,17 +398,18 @@ internal class ProfiledHttpClientTest {
             mockServer.enqueue {
                 HttpResponse.delayed(HttpResponse.of(HttpStatus.OK), Duration.ofMillis(200))
             }
+            val nonExistingServerPort = getAvailableRandomPort()
             val client = WebClient
                 .builder(
                     SessionProtocol.HTTP,
                     EndpointGroup.of(
                         EndpointSelectionStrategy.roundRobin(),
                         mockServer.httpEndpoint(),
-                        Endpoint.of(LocalHost.HOSTNAME.value, getAvailableRandomPort())
+                        Endpoint.of(LocalHost.HOSTNAME.value, nonExistingServerPort)
                     )
                 )
                 .decorator(ProfiledHttpClient.newDecorator(profiler))
-                .decorator(RetryingClient.newDecorator(On503AndConnectExceptionRetryRule, 3))
+                .decorator(RetryingClient.newDecorator(On503AndUnprocessedRetryRule, 3))
                 .build()
 
             client.get("/").aggregate().await()
@@ -410,16 +417,33 @@ internal class ProfiledHttpClientTest {
             eventually(1.seconds) {
                 profilerReporter.buildReportAndReset { metric, _ -> metric.name == Metrics.HTTP_CONNECT } should { report ->
                     logger.trace { "Report: $report" }
-                    report.profiledCallReportWithNameEnding(Metrics.HTTP_CONNECT) should {
-                        it.shouldNotBeNull()
+                    report.profiledCallReportsWithNameEnding(Metrics.HTTP_CONNECT) should { callReports ->
+                        callReports.shouldHaveSize(2)
 
-                        it.stopSum shouldBe 3
-                        it.identity.tags shouldContainExactly mapOf(
-                            MetricTags.PATH to "/",
-                            MetricTags.METHOD to "GET",
-                            MetricTags.PROTOCOL to "http",
-                            MetricTags.IS_MULTIPLEX_PROTOCOL to false.toString()
-                        )
+                        callReports.forOne {
+                            it.stopSum shouldBe 1
+                            it.identity.tags shouldContainExactly mapOf(
+                                MetricTags.PATH to "/",
+                                MetricTags.METHOD to "GET",
+                                MetricTags.PROTOCOL to "http",
+                                MetricTags.IS_MULTIPLEX_PROTOCOL to false.toString(),
+                                MetricTags.REMOTE_ADDRESS to LocalHost.IP.value,
+                                MetricTags.REMOTE_HOST to LocalHost.HOSTNAME.value,
+                                MetricTags.REMOTE_PORT to nonExistingServerPort.toString()
+                            )
+                        }
+                        callReports.forOne {
+                            it.stopSum shouldBe 2
+                            it.identity.tags shouldContainExactly mapOf(
+                                MetricTags.PATH to "/",
+                                MetricTags.METHOD to "GET",
+                                MetricTags.PROTOCOL to "http",
+                                MetricTags.IS_MULTIPLEX_PROTOCOL to false.toString(),
+                                MetricTags.REMOTE_ADDRESS to LocalHost.IP.value,
+                                MetricTags.REMOTE_HOST to LocalHost.HOSTNAME.value,
+                                MetricTags.REMOTE_PORT to mockServer.httpPort().toString()
+                            )
+                        }
                     }
                 }
             }
@@ -459,7 +483,10 @@ internal class ProfiledHttpClientTest {
                         MetricTags.METHOD to "GET",
                         MetricTags.PROTOCOL to "http",
                         MetricTags.IS_MULTIPLEX_PROTOCOL to false.toString(),
-                        MetricTags.ERROR_TYPE to "connect_refused"
+                        MetricTags.ERROR_TYPE to "connect_refused",
+                        MetricTags.REMOTE_ADDRESS to LocalHost.IP.value,
+                        MetricTags.REMOTE_HOST to LocalHost.HOSTNAME.value,
+                        MetricTags.REMOTE_PORT to nonExistingServerPort.toString()
                     )
                 }
             }
@@ -536,17 +563,18 @@ internal class ProfiledHttpClientTest {
                     HttpResponse.of(HttpStatus.OK), Duration.ofMillis(lastRequestDelayMillis)
                 )
             }
+            val nonExistingServerPort = getAvailableRandomPort()
             val client = WebClient
                 .builder(
                     SessionProtocol.HTTP,
                     EndpointGroup.of(
                         EndpointSelectionStrategy.roundRobin(),
                         mockServer.httpEndpoint(),
-                        Endpoint.of(LocalHost.HOSTNAME.value, getAvailableRandomPort()),
+                        Endpoint.of(LocalHost.HOSTNAME.value, nonExistingServerPort),
                         mockServer2.httpEndpoint()
                     )
                 )
-                .decorator(RetryingClient.newDecorator(On503AndConnectExceptionRetryRule, 3))
+                .decorator(RetryingClient.newDecorator(On503AndUnprocessedRetryRule, 3))
                 .decorator(ProfiledHttpClient.newDecorator(profiler))
                 .build()
             /*
@@ -561,6 +589,7 @@ internal class ProfiledHttpClientTest {
 
             eventually(1.seconds) {
                 assertSoftly(profilerReporter.buildReportAndReset()) {
+                    logger.trace { "Report: $this" }
                     profiledCallReportWithNameEnding(Metrics.HTTP_CONNECT) should {
                         it.shouldNotBeNull()
 
@@ -569,7 +598,10 @@ internal class ProfiledHttpClientTest {
                             MetricTags.PATH to "/",
                             MetricTags.METHOD to "GET",
                             MetricTags.PROTOCOL to "http",
-                            MetricTags.IS_MULTIPLEX_PROTOCOL to false.toString()
+                            MetricTags.IS_MULTIPLEX_PROTOCOL to false.toString(),
+                            MetricTags.REMOTE_ADDRESS to LocalHost.IP.value,
+                            MetricTags.REMOTE_HOST to LocalHost.HOSTNAME.value,
+                            MetricTags.REMOTE_PORT to expectedProfiledMockServer.httpPort().toString()
                         )
                     }
                     profiledCallReportWithNameEnding(Metrics.HTTP_CONNECTED) should {
@@ -639,17 +671,18 @@ internal class ProfiledHttpClientTest {
                     Duration.ofMillis(lastRequestDelayMillis)
                 )
             }
+            val nonExistingServerPort = getAvailableRandomPort()
             val client = WebClient
                 .builder(
                     SessionProtocol.HTTP,
                     EndpointGroup.of(
                         EndpointSelectionStrategy.roundRobin(),
                         mockServer.httpEndpoint(),
-                        Endpoint.of(LocalHost.HOSTNAME.value, getAvailableRandomPort()),
+                        Endpoint.of(LocalHost.HOSTNAME.value, nonExistingServerPort),
                         mockServer2.httpEndpoint()
                     )
                 )
-                .decorator(RetryingClient.newDecorator(On503AndConnectExceptionRetryRule, 3))
+                .decorator(RetryingClient.newDecorator(On503AndUnprocessedRetryRule, 3))
                 .decorator(ProfiledHttpClient.newDecorator(profiler))
                 .build()
             /*
@@ -672,7 +705,10 @@ internal class ProfiledHttpClientTest {
                         MetricTags.PATH to "/",
                         MetricTags.METHOD to "GET",
                         MetricTags.PROTOCOL to "http",
-                        MetricTags.IS_MULTIPLEX_PROTOCOL to false.toString()
+                        MetricTags.IS_MULTIPLEX_PROTOCOL to false.toString(),
+                        MetricTags.REMOTE_ADDRESS to LocalHost.IP.value,
+                        MetricTags.REMOTE_HOST to LocalHost.HOSTNAME.value,
+                        MetricTags.REMOTE_PORT to expectedProfiledMockServer.httpPort().toString()
                     )
                 }
             }
