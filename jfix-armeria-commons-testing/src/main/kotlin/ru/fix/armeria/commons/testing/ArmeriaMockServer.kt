@@ -8,30 +8,38 @@ import com.linecorp.armeria.common.SessionProtocol
 import com.linecorp.armeria.common.util.EventLoopGroups
 import com.linecorp.armeria.server.Server
 import com.linecorp.armeria.server.ServerBuilder
+import com.linecorp.armeria.server.ServiceRequestContext
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.launch
 import java.net.URI
 import java.util.concurrent.ConcurrentLinkedQueue
+import kotlin.time.Duration
+import kotlin.time.ExperimentalTime
 
 class ArmeriaMockServer(
     mockServerName: String = "armeria-mock-server",
+    defaultServicePath: String = "/",
     serverBuilderCustomizer: ServerBuilder.() -> ServerBuilder = { this }
 ) {
 
-    private val mockResponses: ConcurrentLinkedQueue<() -> HttpResponse> = ConcurrentLinkedQueue()
+    private val recordedRequests = ConcurrentLinkedQueue<RecordedRequest>()
+    private val mockResponses = ConcurrentLinkedQueue<() -> HttpResponse>()
 
     private val server = Server.builder()
         .http(0)
         .https(0)
         .tlsSelfSigned()
         .workerGroup(EventLoopGroups.newEventLoopGroup(1, "$mockServerName-eventloop-worker"), true)
-        .service("/") { _, req ->
+        .service(defaultServicePath) { ctx, req ->
             HttpResponse.from(req.aggregate().thenApply {
+                recordedRequests.offer(RecordedRequest(it, ctx))
+
                 mockResponses.poll()?.invoke()
                     ?: throw IllegalStateException(
-                        "No mock response configured. Did you call enqueueResponse? Request: $it")
+                        "No mock response configured. Did you call enqueueResponse? Request: $it"
+                    )
             })
         }
         .serverBuilderCustomizer()
@@ -58,6 +66,8 @@ class ArmeriaMockServer(
     fun enqueue(httpResponseCreator: () -> HttpResponse) {
         mockResponses.add(httpResponseCreator)
     }
+
+    fun pollRecordedRequest(): RecordedRequest? = recordedRequests.poll()
 
     fun port(protocol: SessionProtocol) = server.activeLocalPort(protocol)
 
@@ -103,4 +113,12 @@ class ArmeriaMockServer(
         }
     }
 
+    data class RecordedRequest(
+        val request: AggregatedHttpRequest,
+        val requestContext: ServiceRequestContext
+    )
+
 }
+
+@ExperimentalTime
+fun HttpResponse.delayedOn(delay: Duration): HttpResponse = HttpResponse.delayed(this, delay.j)
