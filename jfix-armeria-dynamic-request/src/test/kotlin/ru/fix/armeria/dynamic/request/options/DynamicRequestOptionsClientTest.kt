@@ -12,10 +12,13 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import ru.fix.armeria.commons.testing.ArmeriaMockServer
+import ru.fix.armeria.commons.testing.j
 import ru.fix.dynamic.property.api.AtomicProperty
-import ru.fix.dynamic.property.api.DynamicProperty
-import java.time.Duration
+import kotlin.time.ExperimentalTime
+import kotlin.time.milliseconds
+import kotlin.time.seconds
 
+@ExperimentalTime
 internal class DynamicRequestOptionsClientTest {
 
     val mockServer = ArmeriaMockServer()
@@ -32,21 +35,20 @@ internal class DynamicRequestOptionsClientTest {
 
     @Test
     suspend fun `WHEN read timeout changed THEN new value applied to subsequent requests`() {
-        val serverResponseDelay = 1_000L
-        val readTimeoutProperty = AtomicProperty(serverResponseDelay * 2)
+        val readTimeoutProperty = AtomicProperty(2.seconds)
         val client = WebClient.builder(mockServer.httpUri())
             .decorator(
-                DynamicRequestOptionsClient.newHttpDecorator(readTimeoutProperty, DynamicProperty.of(0))
+                DynamicRequestOptionsClient.newHttpDecorator(readTimeoutProperty.map { it.j })
             ).build()
         val delayedResponseCreator: () -> HttpResponse = {
-            HttpResponse.delayed(HttpResponse.of(HttpStatus.OK), Duration.ofMillis(serverResponseDelay))
+            HttpResponse.delayed(HttpResponse.of(HttpStatus.OK), 1.seconds.j)
         }
 
         // no timeout happened
         mockServer.enqueue(delayedResponseCreator)
         val expectedToNotFailRequest = client.get("/")
         // change property and now timeout must take place on next request
-        readTimeoutProperty.set(serverResponseDelay / 2)
+        readTimeoutProperty.set(500.milliseconds)
         expectedToNotFailRequest.aggregate().await() should {
             it.status() shouldBe HttpStatus.OK
         }

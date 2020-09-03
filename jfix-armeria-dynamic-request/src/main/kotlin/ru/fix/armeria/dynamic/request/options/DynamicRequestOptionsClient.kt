@@ -8,6 +8,7 @@ import com.linecorp.armeria.common.Request
 import com.linecorp.armeria.common.Response
 import ru.fix.armeria.commons.asHttpClient
 import ru.fix.dynamic.property.api.DynamicProperty
+import java.time.Duration
 import java.util.function.Function
 
 /**
@@ -19,13 +20,15 @@ import java.util.function.Function
  */
 class DynamicRequestOptionsClient<RequestT : Request, ResponseT : Response>(
     delegate: Client<RequestT, ResponseT>,
-    private val readTimeoutProperty: DynamicProperty<Long>,
-    private val writeTimeoutProperty: DynamicProperty<Long>
+    private val readTimeoutProperty: DynamicProperty<Duration>,
+    private val writeTimeoutProperty: DynamicProperty<Duration>? = null
 ) : SimpleDecoratingClient<RequestT, ResponseT>(delegate) {
 
     override fun execute(ctx: ClientRequestContext, req: RequestT): ResponseT {
-        ctx.setWriteTimeoutMillis(writeTimeoutProperty.get())
-        ctx.setResponseTimeoutMillis(readTimeoutProperty.get())
+        if (writeTimeoutProperty != null) {
+            ctx.setWriteTimeout(writeTimeoutProperty.get())
+        }
+        ctx.setResponseTimeout(readTimeoutProperty.get())
         return unwrap().execute(ctx, req)
     }
 
@@ -33,8 +36,8 @@ class DynamicRequestOptionsClient<RequestT : Request, ResponseT : Response>(
 
         @JvmStatic
         fun newHttpDecorator(
-            readTimeoutProperty: DynamicProperty<Long>,
-            writeTimeoutProperty: DynamicProperty<Long>
+            readTimeoutProperty: DynamicProperty<Duration>,
+            writeTimeoutProperty: DynamicProperty<Duration>? = null
         ): Function<HttpClient, HttpClient> = Function {
             DynamicRequestOptionsClient(it, readTimeoutProperty, writeTimeoutProperty).asHttpClient()
         }
