@@ -8,6 +8,7 @@ import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
 import kotlinx.coroutines.future.await
+import kotlinx.coroutines.time.delay
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -47,6 +48,8 @@ internal class DynamicRequestOptionsClientTest {
         // no timeout happened
         mockServer.enqueue(delayedResponseCreator)
         val expectedToNotFailRequest = client.get("/")
+        // give request time to start befor changing property
+        delay(100.milliseconds.j)
         // change property and now timeout must take place on next request
         readTimeoutProperty.set(500.milliseconds)
         expectedToNotFailRequest.aggregate().await() should {
