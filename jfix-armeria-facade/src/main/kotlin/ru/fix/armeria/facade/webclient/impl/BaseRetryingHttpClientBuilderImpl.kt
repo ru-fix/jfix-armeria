@@ -45,7 +45,7 @@ internal abstract class BaseRetryingHttpClientBuilderImpl<BuilderT : BaseRetryin
             ProfiledHttpClient.newDecorator(
                 PrefixedProfiler(
                     profiler,
-                    "${baseBuilderState.clientNameCreator()}.${Metrics.WHOLE_REQUEST_PREFIX}"
+                    "${baseBuilderState.clientNameCreator()}.${Metrics.WHOLE_RETRY_SESSION_PREFIX}"
                 )
             )
         })

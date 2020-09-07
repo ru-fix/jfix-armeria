@@ -55,7 +55,7 @@ internal class TimeoutsImmutableRetryingHttpClientBuilderImpl(
                     .withEachAttemptProfilingAndRateLimitingDecorators(closeableDecorators)
                     .withEachAttemptTimeoutRetryingDecorator(timeout.value)
                 is Either.Right -> this
-                    .decorator(DynamicRequestOptionsClient.newHttpDecorator(timeout.value))
+                    .decorator(DynamicRequestOptionsClient.newHttpDecoratorWithReadTimeout(timeout.value))
                     .withEachAttemptProfilingAndRateLimitingDecorators(closeableDecorators)
                     .withDefaultTimeoutsRetryingDecorator()
             }
@@ -89,7 +89,7 @@ internal class TimeoutsImmutableRetryingHttpClientBuilderImpl(
         is Either.Left -> this
             .responseTimeout(timeout.value)
         is Either.Right -> this
-            .decorator(DynamicRequestOptionsClient.newHttpDecorator(timeout.value))
+            .decorator(DynamicRequestOptionsClient.newHttpDecoratorWithReadTimeout(timeout.value))
     }
 
 }

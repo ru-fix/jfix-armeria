@@ -18,9 +18,9 @@ import java.util.function.Function
  * @property readTimeoutProperty property with value of [ClientRequestContext.responseTimeoutMillis]
  * @property writeTimeoutProperty property with value of [ClientRequestContext.writeTimeoutMillis]
  */
-class DynamicRequestOptionsClient<RequestT : Request, ResponseT : Response>(
+class DynamicRequestOptionsClient<RequestT : Request, ResponseT : Response> private constructor(
     delegate: Client<RequestT, ResponseT>,
-    private val readTimeoutProperty: DynamicProperty<Duration>,
+    private val readTimeoutProperty: DynamicProperty<Duration>? = null,
     private val writeTimeoutProperty: DynamicProperty<Duration>? = null
 ) : SimpleDecoratingClient<RequestT, ResponseT>(delegate) {
 
@@ -28,7 +28,9 @@ class DynamicRequestOptionsClient<RequestT : Request, ResponseT : Response>(
         if (writeTimeoutProperty != null) {
             ctx.setWriteTimeout(writeTimeoutProperty.get())
         }
-        ctx.setResponseTimeout(readTimeoutProperty.get())
+        if (readTimeoutProperty != null) {
+            ctx.setResponseTimeout(readTimeoutProperty.get())
+        }
         return unwrap().execute(ctx, req)
     }
 
@@ -36,11 +38,27 @@ class DynamicRequestOptionsClient<RequestT : Request, ResponseT : Response>(
 
         @JvmStatic
         fun newHttpDecorator(
-            readTimeoutProperty: DynamicProperty<Duration>,
-            writeTimeoutProperty: DynamicProperty<Duration>? = null
+            writeTimeoutProperty: DynamicProperty<Duration>,
+            readTimeoutProperty: DynamicProperty<Duration>
         ): Function<HttpClient, HttpClient> = Function {
             DynamicRequestOptionsClient(it, readTimeoutProperty, writeTimeoutProperty).asHttpClient()
         }
+
+        @JvmStatic
+        fun newHttpDecoratorWithReadTimeout(
+            readTimeoutProperty: DynamicProperty<Duration>
+        ): Function<HttpClient, HttpClient> = Function {
+            DynamicRequestOptionsClient(it, readTimeoutProperty).asHttpClient()
+        }
+
+        @JvmStatic
+        fun newHttpDecoratorWithWriteTimeout(
+            writeTimeoutProperty: DynamicProperty<Duration>
+        ): Function<HttpClient, HttpClient> = Function {
+            DynamicRequestOptionsClient(it, null, writeTimeoutProperty).asHttpClient()
+        }
+
+
     }
 
 }

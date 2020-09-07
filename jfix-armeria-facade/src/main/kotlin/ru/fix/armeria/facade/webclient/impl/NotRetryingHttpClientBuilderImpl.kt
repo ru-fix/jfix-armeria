@@ -6,6 +6,7 @@ import ru.fix.aggregating.profiler.PrefixedProfiler
 import ru.fix.aggregating.profiler.Profiler
 import ru.fix.armeria.aggregating.profiler.ProfiledHttpClient
 import ru.fix.armeria.commons.AutoCloseableHttpClient
+import ru.fix.armeria.dynamic.request.options.DynamicRequestOptionsClient
 import ru.fix.armeria.facade.Either
 import ru.fix.armeria.facade.webclient.NotRetryingHttpClientBuilder
 import ru.fix.dynamic.property.api.DynamicProperty
@@ -68,15 +69,57 @@ internal class NotRetryingHttpClientBuilderImpl(
             : Pair<ClientOptionsBuilder, List<AutoCloseableHttpClient<*>>> {
         val closeableDecorators = mutableListOf<AutoCloseableHttpClient<*>>()
 
-        val clientOptionsBuilder = this.let { optionsBuilder ->
-            notRetryingBuilderState.profilingDecoratorCreator?.let {
-                optionsBuilder.decorator(it())
-            } ?: optionsBuilder
-        }.withRateLimitingDecorator(closeableDecorators)
+        val clientOptionsBuilder = this
+            .let { optionsBuilder ->
+                when (notRetryingBuilderState.writeRequestTimeout) {
+                    is Either.Left -> optionsBuilder
+                        .writeTimeout(notRetryingBuilderState.writeRequestTimeout.value)
+                        .let {
+                            when (notRetryingBuilderState.responseTimeout) {
+                                is Either.Left -> it
+                                    .responseTimeout(notRetryingBuilderState.responseTimeout.value)
+                                is Either.Right -> it
+                                    .decorator(DynamicRequestOptionsClient.newHttpDecoratorWithReadTimeout(
+                                        notRetryingBuilderState.responseTimeout.value
+                                    ))
+                                null -> it
+                            }
+                        }
+                    is Either.Right -> when (notRetryingBuilderState.responseTimeout) {
+                        is Either.Left -> optionsBuilder
+                            .responseTimeout(notRetryingBuilderState.responseTimeout.value)
+                            .decorator(DynamicRequestOptionsClient.newHttpDecoratorWithWriteTimeout(
+                                notRetryingBuilderState.writeRequestTimeout.value
+                            ))
+                        is Either.Right -> optionsBuilder
+                            .decorator(DynamicRequestOptionsClient.newHttpDecorator(
+                                notRetryingBuilderState.writeRequestTimeout.value,
+                                notRetryingBuilderState.responseTimeout.value
+                            ))
+                        null -> optionsBuilder
+                            .decorator(DynamicRequestOptionsClient.newHttpDecoratorWithWriteTimeout(
+                                notRetryingBuilderState.writeRequestTimeout.value
+                            ))
+                    }
+                    null -> when (notRetryingBuilderState.responseTimeout) {
+                        is Either.Left -> optionsBuilder
+                            .responseTimeout(notRetryingBuilderState.responseTimeout.value)
+                        is Either.Right -> optionsBuilder
+                            .decorator(DynamicRequestOptionsClient.newHttpDecoratorWithReadTimeout(
+                                notRetryingBuilderState.responseTimeout.value
+                            ))
+                        null -> optionsBuilder
+                    }
+                }
+            }
+            .let { optionsBuilder ->
+                notRetryingBuilderState.profilingDecoratorCreator?.let {
+                    optionsBuilder.decorator(it())
+                } ?: optionsBuilder
+            }.withRateLimitingDecorator(closeableDecorators)
 
         return clientOptionsBuilder to closeableDecorators
     }
-
 
 
     override fun copyOfThisBuilder(baseBuilderStateBase: BaseHttpClientBuilderState): NotRetryingHttpClientBuilder =

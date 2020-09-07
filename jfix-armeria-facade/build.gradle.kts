@@ -11,7 +11,7 @@ dependencies {
     implementation(Libs.armeria_retrofit2)
 
     // jfix-armeria modules
-    api(project(Projs.`dynamic-request`.dependency))
+    implementation(project(Projs.`dynamic-request`.dependency))
     implementation(project(Projs.commons.dependency))
     implementation(project(Projs.`aggregating-profiler`.dependency))
     implementation(project(Projs.limiter.dependency))
