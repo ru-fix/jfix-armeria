@@ -5,6 +5,7 @@ import com.linecorp.armeria.client.ConnectionPoolListener
 import com.linecorp.armeria.client.WebClient
 import com.linecorp.armeria.common.HttpResponse
 import com.linecorp.armeria.common.HttpStatus
+import com.linecorp.armeria.common.SessionProtocol
 import io.kotest.assertions.assertSoftly
 import io.kotest.assertions.timing.eventually
 import io.kotest.matchers.longs.shouldBeBetween
@@ -49,7 +50,7 @@ internal class ProfiledConnectionPoolListenerTest {
         val profilerReporter = profiler.createReporter()
         val connectionTtlMs: Long = 300
         val client = WebClient
-            .builder(mockServer.httpUri())
+            .builder(mockServer.uri(SessionProtocol.H2C))
             .factory(
                 ClientFactory.builder()
                     .connectionPoolListener(
