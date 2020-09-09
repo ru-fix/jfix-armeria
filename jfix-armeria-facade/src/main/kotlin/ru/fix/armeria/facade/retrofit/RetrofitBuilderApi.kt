@@ -2,6 +2,7 @@ package ru.fix.armeria.facade.retrofit
 
 import com.linecorp.armeria.client.retrofit2.ArmeriaRetrofitBuilder
 import retrofit2.Converter
+import ru.fix.aggregating.profiler.Profiler
 import ru.fix.dynamic.property.api.DynamicProperty
 import java.time.Duration
 import java.util.concurrent.ExecutorService
@@ -10,6 +11,11 @@ interface RetrofitHttpClientBuilder {
 
     fun addConverterFactory(factory: Converter.Factory): RetrofitHttpClientBuilder
 
+    fun enableNamedBlockingResponseReadingExecutor(
+        maxPoolSizeProp: DynamicProperty<Int>,
+        profiler: Profiler,
+        shutdownTimeoutProp: DynamicProperty<Duration>
+    ): RetrofitHttpClientBuilder
     fun setBlockingResponseReadingExecutor(
         retrofitCallbackExecutor: ExecutorService,
         shutdownTimeout: Duration

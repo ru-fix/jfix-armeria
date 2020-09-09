@@ -50,6 +50,9 @@ internal abstract class BaseHttpClientBuilderImpl<out HttpClientBuilderT : BaseH
 
     private lateinit var clientName: String
 
+    internal val lazyClientName: () -> String
+        get() = baseBuilderState.clientNameCreator
+
     override fun setClientName(clientName: String) = copyOfThisBuilder(
         baseBuilderState.copy(clientNameCreator = { clientName })
     )
@@ -98,6 +101,12 @@ internal abstract class BaseHttpClientBuilderImpl<out HttpClientBuilderT : BaseH
         })
     )
 
+    override fun setEndpointGroup(endpointGroup: EndpointGroup): HttpClientBuilderT = copyOfThisBuilder(
+        baseBuilderState.copy(endpointGroupCreator = {
+            Either.Left(lazyOf(endpointGroup))
+        })
+    )
+
     override fun setIoThreadsCount(count: Int) = copyOfThisBuilder(
         baseBuilderState.copy(ioThreadsCount = count)
     )
@@ -141,7 +150,9 @@ internal abstract class BaseHttpClientBuilderImpl<out HttpClientBuilderT : BaseH
         }
         clientName = baseBuilderState.clientNameCreator()
 
-        val webClientBuilder = when (val endpointGroup = baseBuilderState.endpointGroupCreator()) {
+        val endpointGroup = baseBuilderState.endpointGroupCreator()
+
+        val webClientBuilder = when (endpointGroup) {
             is Either.Left -> WebClient.builder(baseBuilderState.sessionProtocol, endpointGroup.value.value)
             is Either.Right -> WebClient.builder(endpointGroup.value)
         }
@@ -186,9 +197,12 @@ internal abstract class BaseHttpClientBuilderImpl<out HttpClientBuilderT : BaseH
                     }
                     logger.info { "$clientName: closing http client factory under the hood..." }
                     clientFactory.close()
+                    endpointGroup.leftOrNull?.let {
+                        logger.info { "$clientName: closing endpoint (group)..." }
+                        it.value.close()
+                    }
                 }
                 logger.info { """Armeria http client "$clientName" closed in $closingTimeMillis ms.""" }
-                clientFactory.close()
             }
         )
     }

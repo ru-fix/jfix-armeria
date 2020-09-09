@@ -1,22 +1,24 @@
 package ru.fix.armeria.facade.retrofit.impl
 
-import ru.fix.armeria.facade.Either
 import com.linecorp.armeria.client.retrofit2.ArmeriaRetrofit
 import com.linecorp.armeria.client.retrofit2.ArmeriaRetrofitBuilder
 import org.apache.logging.log4j.kotlin.Logging
 import retrofit2.Converter
+import ru.fix.aggregating.profiler.Profiler
+import ru.fix.armeria.facade.Either
 import ru.fix.armeria.facade.retrofit.CloseableRetrofit
 import ru.fix.armeria.facade.retrofit.RetrofitHttpClientBuilder
-import ru.fix.armeria.facade.webclient.BaseHttpClientBuilder
+import ru.fix.armeria.facade.webclient.impl.BaseHttpClientBuilderImpl
 import ru.fix.dynamic.property.api.DynamicProperty
+import ru.fix.stdlib.concurrency.threads.NamedExecutors
 import java.time.Duration
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.TimeUnit
 import kotlin.system.measureTimeMillis
 
 internal data class BlockingResponseReadingExecutorState(
-    val executor: ExecutorService,
-    val shutdownTimeout: Either<Duration, DynamicProperty<Duration>>
+    val shutdownTimeout: Either<Duration, DynamicProperty<Duration>>,
+    val lazyExecutor: Lazy<ExecutorService>
 )
 
 internal data class RetrofitHttpClientBuilderState(
@@ -26,7 +28,7 @@ internal data class RetrofitHttpClientBuilderState(
 )
 
 internal class RetrofitHttpClientBuilderImpl(
-    private val baseHttpClientBuilder: BaseHttpClientBuilder<*>,
+    private val baseHttpClientBuilder: BaseHttpClientBuilderImpl<*>,
     private val builderState: RetrofitHttpClientBuilderState = RetrofitHttpClientBuilderState()
 ) : RetrofitHttpClientBuilder {
 
@@ -38,6 +40,25 @@ internal class RetrofitHttpClientBuilderImpl(
             builderState.copy(converterFactories = builderState.converterFactories + factory)
         )
 
+    override fun enableNamedBlockingResponseReadingExecutor(
+        maxPoolSizeProp: DynamicProperty<Int>,
+        profiler: Profiler,
+        shutdownTimeoutProp: DynamicProperty<Duration>
+    ): RetrofitHttpClientBuilder = RetrofitHttpClientBuilderImpl(
+        baseHttpClientBuilder,
+        builderState.copy(
+            blockingResponseReadingExecutorState = BlockingResponseReadingExecutorState(
+                Either.Right(shutdownTimeoutProp),
+                lazy {
+                    NamedExecutors.newDynamicPool(
+                        "${baseHttpClientBuilder.lazyClientName()}-retrofit-reading-pool",
+                        maxPoolSizeProp,
+                        profiler
+                    )
+                }
+            )
+        )
+    )
 
     override fun setBlockingResponseReadingExecutor(
         retrofitCallbackExecutor: ExecutorService,
@@ -46,8 +67,8 @@ internal class RetrofitHttpClientBuilderImpl(
         baseHttpClientBuilder,
         builderState.copy(
             blockingResponseReadingExecutorState = BlockingResponseReadingExecutorState(
-                retrofitCallbackExecutor,
-                Either.Left(shutdownTimeout)
+                Either.Left(shutdownTimeout),
+                lazyOf(retrofitCallbackExecutor)
             )
         )
     )
@@ -59,8 +80,8 @@ internal class RetrofitHttpClientBuilderImpl(
         baseHttpClientBuilder,
         builderState.copy(
             blockingResponseReadingExecutorState = BlockingResponseReadingExecutorState(
-                retrofitCallbackExecutor,
-                Either.Right(shutdownTimeoutProp)
+                Either.Right(shutdownTimeoutProp),
+                lazyOf(retrofitCallbackExecutor)
             )
         )
     )
@@ -75,7 +96,7 @@ internal class RetrofitHttpClientBuilderImpl(
         }
 
         builderState.blockingResponseReadingExecutorState?.let {
-            armeriaRetrofitBuilder = armeriaRetrofitBuilder.callbackExecutor(it.executor)
+            armeriaRetrofitBuilder = armeriaRetrofitBuilder.callbackExecutor(it.lazyExecutor.value)
         }
 
         val armeriaRetrofitBuilderCustomizer = builderState.armeriaRetrofitBuilderCustomizer
@@ -93,17 +114,17 @@ internal class RetrofitHttpClientBuilderImpl(
                         logger.info {
                             "$logPrefix closing blocking response reading executor..."
                         }
-                        it.executor.shutdown()
+                        it.lazyExecutor.value.shutdown()
                         val shutdownTimeout = when (val timeout = it.shutdownTimeout) {
                             is Either.Left -> timeout.value
                             is Either.Right -> timeout.value.get()
                         }
-                        if (!it.executor.awaitTermination(shutdownTimeout.toMillis(), TimeUnit.MILLISECONDS)) {
+                        if (!it.lazyExecutor.value.awaitTermination(shutdownTimeout.toMillis(), TimeUnit.MILLISECONDS)) {
                             logger.error {
                                 "$logPrefix failed to await termination of blocking response reading executor " +
                                         "for $shutdownTimeout ms. Forcing shutdown..."
                             }
-                            it.executor.shutdownNow()
+                            it.lazyExecutor.value.shutdownNow()
                         }
                     }
                 }

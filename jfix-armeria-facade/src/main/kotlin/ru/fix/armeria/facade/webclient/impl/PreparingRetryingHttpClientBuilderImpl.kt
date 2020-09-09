@@ -13,10 +13,10 @@ internal class PreparingRetryingHttpClientBuilderImpl(
         baseRetryingBuilderState
     ) {
 
-    override fun withCustomTimeouts(): TimeoutsConfiguringRetryingHttpClientBuilder =
+    override fun withCustomResponseTimeouts(): TimeoutsConfiguringRetryingHttpClientBuilder =
         TimeoutsConfiguringRetryingHttpClientBuilderImpl(baseBuilderState, baseRetryingBuilderState)
 
-    override fun withDefaultTimeouts(): TimeoutsImmutableRetryingHttpClientBuilder =
+    override fun withDefaultResponseTimeouts(): TimeoutsImmutableRetryingHttpClientBuilder =
         TimeoutsImmutableRetryingHttpClientBuilderImpl(baseBuilderState, baseRetryingBuilderState)
 
     override fun copyOfThisBuilder(

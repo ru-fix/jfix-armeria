@@ -11,15 +11,13 @@ dependencies {
     implementation(Libs.armeria_retrofit2)
 
     // jfix-armeria modules
-    implementation(project(Projs.`dynamic-request`.dependency))
+    api(project(Projs.`dynamic-request`.dependency))
     implementation(project(Projs.commons.dependency))
     implementation(project(Projs.`aggregating-profiler`.dependency))
     implementation(project(Projs.limiter.dependency))
 
-    // jfix-components. Compile-only in order do not require facade clients to transitively depend on them
-    compileOnly(Libs.aggregating_profiler)
-    compileOnly(Libs.dynamic_property_api)
-    compileOnly(Libs.jfix_stdlib_ratelimiter)
+    // jfix-components
+    implementation(Libs.jfix_stdlib_concurrency)
 
     // Logging
     implementation(Libs.log4j_kotlin)

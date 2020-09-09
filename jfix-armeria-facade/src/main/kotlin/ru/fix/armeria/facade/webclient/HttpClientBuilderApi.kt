@@ -2,6 +2,7 @@ package ru.fix.armeria.facade.webclient
 
 import com.linecorp.armeria.client.ClientFactoryBuilder
 import com.linecorp.armeria.client.ClientOptionsBuilder
+import com.linecorp.armeria.client.endpoint.EndpointGroup
 import com.linecorp.armeria.client.endpoint.EndpointSelectionStrategy
 import com.linecorp.armeria.client.retry.RetryRule
 import com.linecorp.armeria.common.SessionProtocol
@@ -39,6 +40,13 @@ interface BaseHttpClientBuilder<out HttpClientBuilderT : BaseHttpClientBuilder<H
         endpointSelectionStrategy: EndpointSelectionStrategy
     ): HttpClientBuilderT
 
+    /**
+     * [endpointGroup] will be closed when closing corresponding [CloseableWebClient]
+     */
+    fun setEndpointGroup(
+        endpointGroup: EndpointGroup
+    ): HttpClientBuilderT
+
     /*
      * END Mandatory builder methods.
      */
@@ -54,6 +62,9 @@ interface BaseHttpClientBuilder<out HttpClientBuilderT : BaseHttpClientBuilder<H
 
     fun enableConnectionsProfiling(profiler: Profiler): HttpClientBuilderT
 
+    /**
+     * [rateLimitedDispatcher] will be closed when closing corresponding [CloseableWebClient]
+     */
     fun enableRateLimit(rateLimitedDispatcher: RateLimitedDispatcher): HttpClientBuilderT
 
     fun buildArmeriaWebClient(): CloseableWebClient
@@ -112,14 +123,17 @@ interface BaseRetryingHttpClientBuilder<BuilderT : BaseRetryingHttpClientBuilder
 
     fun enableWholeRequestProfiling(profiler: Profiler): BuilderT
 
+    fun setEachAttemptWriteRequestTimeout(timeout: Duration): BuilderT
+    fun setEachAttemptWriteRequestTimeout(timeoutProperty: DynamicProperty<Duration>): BuilderT
+
 }
 
 interface PreparingRetryingHttpClientBuilder :
     BaseRetryingHttpClientBuilder<PreparingRetryingHttpClientBuilder> {
 
-    fun withCustomTimeouts(): TimeoutsConfiguringRetryingHttpClientBuilder
+    fun withCustomResponseTimeouts(): TimeoutsConfiguringRetryingHttpClientBuilder
 
-    fun withDefaultTimeouts(): TimeoutsImmutableRetryingHttpClientBuilder
+    fun withDefaultResponseTimeouts(): TimeoutsImmutableRetryingHttpClientBuilder
 
 }
 

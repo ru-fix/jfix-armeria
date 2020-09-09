@@ -46,28 +46,30 @@ internal class TimeoutsImmutableRetryingHttpClientBuilderImpl(
             : Pair<ClientOptionsBuilder, List<AutoCloseableHttpClient<*>>> {
         val closeableDecorators: MutableList<AutoCloseableHttpClient<*>> = mutableListOf()
 
-        val clientOptionsBuilderWithRetries = when (retryTimeouts) {
-            null -> this
-                .withEachAttemptProfilingAndRateLimitingDecorators(closeableDecorators)
-                .withDefaultTimeoutsRetryingDecorator()
-            is RetryTimeouts.ForEachAttempt -> when (val timeout = retryTimeouts.attemptTimeout) {
-                is Either.Left -> this
-                    .withEachAttemptProfilingAndRateLimitingDecorators(closeableDecorators)
-                    .withEachAttemptTimeoutRetryingDecorator(timeout.value)
-                is Either.Right -> this
-                    .decorator(DynamicRequestOptionsClient.newHttpDecoratorWithReadTimeout(timeout.value))
+        val clientOptionsBuilderWithRetries = with(this.withEachAttemptWriteRequestTimeout()) {
+            when (retryTimeouts) {
+                null -> this
                     .withEachAttemptProfilingAndRateLimitingDecorators(closeableDecorators)
                     .withDefaultTimeoutsRetryingDecorator()
-            }
-            is RetryTimeouts.ForWholeRequest -> this
-                .withEachAttemptProfilingAndRateLimitingDecorators(closeableDecorators)
-                .withDefaultTimeoutsRetryingDecorator()
-                .withWholeRequestTimeout(retryTimeouts.wholeRequestTimeout)
-            is RetryTimeouts.ForEachAttemptAndWholeRequest -> this
-                .withEachAttemptProfilingAndRateLimitingDecorators(closeableDecorators)
-                .withEachAttemptTimeoutRetryingDecorator(retryTimeouts.attemptTimeout)
-                .withWholeRequestTimeout(retryTimeouts.wholeRequestTimeout)
-        }.withWholeRequestProfilingDecorator()
+                is RetryTimeouts.ForEachAttempt -> when (val timeout = retryTimeouts.attemptTimeout) {
+                    is Either.Left -> this
+                        .withEachAttemptProfilingAndRateLimitingDecorators(closeableDecorators)
+                        .withEachAttemptTimeoutRetryingDecorator(timeout.value)
+                    is Either.Right -> this
+                        .decorator(DynamicRequestOptionsClient.newHttpDecoratorWithReadTimeout(timeout.value))
+                        .withEachAttemptProfilingAndRateLimitingDecorators(closeableDecorators)
+                        .withDefaultTimeoutsRetryingDecorator()
+                }
+                is RetryTimeouts.ForWholeRequest -> this
+                    .withEachAttemptProfilingAndRateLimitingDecorators(closeableDecorators)
+                    .withDefaultTimeoutsRetryingDecorator()
+                    .withWholeRequestTimeout(retryTimeouts.wholeRequestTimeout)
+                is RetryTimeouts.ForEachAttemptAndWholeRequest -> this
+                    .withEachAttemptProfilingAndRateLimitingDecorators(closeableDecorators)
+                    .withEachAttemptTimeoutRetryingDecorator(retryTimeouts.attemptTimeout)
+                    .withWholeRequestTimeout(retryTimeouts.wholeRequestTimeout)
+            }.withWholeRequestProfilingDecorator()
+        }
 
         return clientOptionsBuilderWithRetries to closeableDecorators
     }
