@@ -65,8 +65,13 @@ dependencies {
     //  Mocking
     testImplementation(Libs.mockk)
     testImplementation(Libs.armeria_junit5)
+    testImplementation(Libs.mockserver_client_java)
     //  Retrofit integration
     testImplementation(Libs.retrofit2_converter_jackson)
+    //  TestContainers
+    testImplementation(Libs.testcontainers)
+    //testImplementation(Libs.testcontainers_junit_jupiter)
+    testImplementation(Libs.testcontainers_mockserver)
     //  Other useful libs
     testImplementation(Libs.jfix_stdlib_socket)
 }

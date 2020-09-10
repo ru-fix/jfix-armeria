@@ -29,6 +29,8 @@ object Vers {
     const val kotest = "4.2.0"
     const val mockk = "1.10.0"
     const val corounit = "1.0.32"
+    const val mockserver = "5.11.1"
+    const val testcontainers = "1.14.3"
 }
 
 object Libs {
@@ -75,6 +77,11 @@ object Libs {
     const val kotest_assertions_json_jvm = "io.kotest:kotest-assertions-json-jvm:${Vers.kotest}"
     const val mockk = "io.mockk:mockk:${Vers.mockk}"
     const val corounit_engine = "ru.fix:corounit-engine:${Vers.corounit}"
+    const val mockserver_client_java = "org.mock-server:mockserver-client-java:${Vers.mockserver}"
+    // TestContainers
+    const val testcontainers = "org.testcontainers:testcontainers:${Vers.testcontainers}"
+    const val testcontainers_junit_jupiter = "org.testcontainers:junit-jupiter:${Vers.testcontainers}"
+    const val testcontainers_mockserver = "org.testcontainers:mockserver:${Vers.testcontainers}"
 }
 
 const val ProjectGroup = "ru.fix"
