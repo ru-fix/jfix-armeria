@@ -63,10 +63,12 @@ object Libs {
 
     // Armeria
     const val armeria = "com.linecorp.armeria:armeria:${Vers.armeria}"
+    const val armeria_kotlin = "com.linecorp.armeria:armeria-kotlin:${Vers.armeria}"
     const val armeria_retrofit2 = "com.linecorp.armeria:armeria-retrofit2:${Vers.armeria}"
 
     // Retrofit
     const val retrofit2_converter_jackson = "com.squareup.retrofit2:converter-jackson:${Vers.retrofit}"
+    const val retrofit2_converter_scalars = "com.squareup.retrofit2:converter-scalars:${Vers.retrofit}"
 
     // Testing
     const val junit_api = "org.junit.jupiter:junit-jupiter-api:${Vers.junit}"

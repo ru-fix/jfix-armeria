@@ -11,7 +11,9 @@
     </Appenders>
     <Loggers>
         <Logger name="ru.fix" level="TRACE"/>
-        <Logger name="com.linecorp.armeria" level="DEBUG"/>
+        <Logger name="ru.fix.armeria.aggregating.profiler.ProfiledHttpClient" level="ERROR"/>
+        <Logger name="org.testcontainers.containers" level="TRACE"/>
+        <Logger name="com.linecorp.armeria" level="ERROR"/>
         <Root level="info">
             <AppenderRef ref="console"/>
         </Root>
