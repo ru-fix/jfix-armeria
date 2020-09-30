@@ -17,7 +17,7 @@ object Vers {
     const val jfix_stdlib = "3.0.12"
 
     // Armeria and Retrofit
-    const val armeria = "1.0.0"
+    const val armeria = "1.1.0"
     const val retrofit = "2.9.0"
 
     // Logging
