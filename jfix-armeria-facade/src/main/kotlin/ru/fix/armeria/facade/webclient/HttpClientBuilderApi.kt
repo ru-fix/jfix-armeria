@@ -28,19 +28,22 @@ interface BaseHttpClientBuilder<out HttpClientBuilderT : BaseHttpClientBuilder<H
     fun setEndpoint(host: String, port: Int): HttpClientBuilderT
 
     /**
-     * [jfix-armeria-dynamic-request](https://github.com/ru-fix/jfix-armeria) dependency required.
+     * [jfix-armeria-dynamic-request](https://github.com/ru-fix/jfix-armeria) dependency
+     * OR Gradle capability _jfix-armeria-facade-dynamic-request-support_ required.
      */
     fun setDynamicEndpoint(
         addressProperty: DynamicProperty<SocketAddress>
     ): HttpClientBuilderT
     /**
-     * [jfix-armeria-dynamic-request](https://github.com/ru-fix/jfix-armeria) dependency required.
+     * [jfix-armeria-dynamic-request](https://github.com/ru-fix/jfix-armeria) dependency
+     * OR Gradle capability _jfix-armeria-facade-dynamic-request-support_ required.
      */
     fun setDynamicEndpoints(
         addressListProperty: DynamicProperty<List<SocketAddress>>
     ): HttpClientBuilderT
     /**
-     * [jfix-armeria-dynamic-request](https://github.com/ru-fix/jfix-armeria) dependency required.
+     * [jfix-armeria-dynamic-request](https://github.com/ru-fix/jfix-armeria) dependency
+     * OR Gradle capability _jfix-armeria-facade-dynamic-request-support_ required.
      */
     fun setDynamicEndpoints(
         addressListProperty: DynamicProperty<List<SocketAddress>>,
@@ -68,22 +71,24 @@ interface BaseHttpClientBuilder<out HttpClientBuilderT : BaseHttpClientBuilder<H
     fun setUseHttp2Preface(useHttp2Preface: Boolean): HttpClientBuilderT
 
     /**
-     * [jfix-armeria-aggregating-profiler](https://github.com/ru-fix/jfix-armeria) dependency required.
+     * [jfix-armeria-aggregating-profiler](https://github.com/ru-fix/jfix-armeria) dependency
+     * OR Gradle capability _jfix-armeria-facade-aggregating-profiler-support_ required.
      */
     fun enableConnectionsProfiling(profiler: Profiler): HttpClientBuilderT
 
     /**
      * [rateLimitedDispatcher] will be closed when closing corresponding [CloseableWebClient].
      *
-     * [jfix-armeria-limiter](https://github.com/ru-fix/jfix-armeria) dependency required.
+     * [jfix-armeria-limiter](https://github.com/ru-fix/jfix-armeria) dependency
+     * OR Gradle capability _jfix-armeria-facade-rate-limiter-support_ required.
      */
     fun enableRateLimit(rateLimitedDispatcher: RateLimitedDispatcher): HttpClientBuilderT
 
     fun buildArmeriaWebClient(): CloseableWebClient
 
     /**
-     * [armeria-retrofit2](https://mvnrepository.com/artifact/com.linecorp.armeria/armeria-retrofit2)
-     * dependency required.
+     * [armeria-retrofit2](https://mvnrepository.com/artifact/com.linecorp.armeria/armeria-retrofit2) dependency
+     * OR Gradle capability _jfix-armeria-facade-retrofit-support_ required.
      */
     fun enableRetrofitSupport(): RetrofitHttpClientBuilder
 
@@ -120,19 +125,22 @@ interface PreparingHttpClientBuilder : BaseHttpClientBuilder<PreparingHttpClient
 interface NotRetryingHttpClientBuilder : BaseHttpClientBuilder<NotRetryingHttpClientBuilder> {
 
     /**
-     * [jfix-armeria-aggregating-profiler](https://github.com/ru-fix/jfix-armeria) dependency required.
+     * [jfix-armeria-aggregating-profiler](https://github.com/ru-fix/jfix-armeria) dependency
+     * OR Gradle capability _jfix-armeria-facade-aggregating-profiler-support_ required.
      */
     fun enableRequestsProfiling(profiler: Profiler): NotRetryingHttpClientBuilder
 
     fun setResponseTimeout(timeout: Duration): NotRetryingHttpClientBuilder
     /**
-     * [jfix-armeria-dynamic-request](https://github.com/ru-fix/jfix-armeria) dependency required.
+     * [jfix-armeria-dynamic-request](https://github.com/ru-fix/jfix-armeria) dependency
+     * OR Gradle capability _jfix-armeria-facade-dynamic-request-support_ required.
      */
     fun setResponseTimeout(timeoutProperty: DynamicProperty<Duration>): NotRetryingHttpClientBuilder
 
     fun setWriteRequestTimeout(timeout: Duration): NotRetryingHttpClientBuilder
     /**
-     * [jfix-armeria-dynamic-request](https://github.com/ru-fix/jfix-armeria) dependency required.
+     * [jfix-armeria-dynamic-request](https://github.com/ru-fix/jfix-armeria) dependency
+     * OR Gradle capability _jfix-armeria-facade-dynamic-request-support_ required.
      */
     fun setWriteRequestTimeout(timeoutProperty: DynamicProperty<Duration>): NotRetryingHttpClientBuilder
 
@@ -144,18 +152,21 @@ interface BaseRetryingHttpClientBuilder<BuilderT : BaseRetryingHttpClientBuilder
     fun enableSupportOfRetryAfterHeader(): BuilderT
 
     /**
-     * [jfix-armeria-aggregating-profiler](https://github.com/ru-fix/jfix-armeria) dependency required.
+     * [jfix-armeria-aggregating-profiler](https://github.com/ru-fix/jfix-armeria) dependency
+     * OR Gradle capability _jfix-armeria-facade-aggregating-profiler-support_ required.
      */
     fun enableEachAttemptProfiling(profiler: Profiler): BuilderT
 
     /**
-     * [jfix-armeria-aggregating-profiler](https://github.com/ru-fix/jfix-armeria) dependency required.
+     * [jfix-armeria-aggregating-profiler](https://github.com/ru-fix/jfix-armeria) dependency
+     * OR Gradle capability _jfix-armeria-facade-aggregating-profiler-support_ required.
      */
     fun enableWholeRequestProfiling(profiler: Profiler): BuilderT
 
     fun setEachAttemptWriteRequestTimeout(timeout: Duration): BuilderT
     /**
-     * [jfix-armeria-dynamic-request](https://github.com/ru-fix/jfix-armeria) dependency required.
+     * [jfix-armeria-dynamic-request](https://github.com/ru-fix/jfix-armeria) dependency
+     * OR Gradle capability _jfix-armeria-facade-dynamic-request-support_ required.
      */
     fun setEachAttemptWriteRequestTimeout(timeoutProperty: DynamicProperty<Duration>): BuilderT
 
@@ -179,7 +190,8 @@ interface TimeoutsConfiguringRetryingHttpClientBuilder :
 
     fun setEachAttemptResponseTimeout(timeout: Duration): TimeoutsImmutableRetryingHttpClientBuilder
     /**
-     * [jfix-armeria-dynamic-request](https://github.com/ru-fix/jfix-armeria) dependency required.
+     * [jfix-armeria-dynamic-request](https://github.com/ru-fix/jfix-armeria) dependency
+     * OR Gradle capability _jfix-armeria-facade-dynamic-request-support_ required.
      */
     fun setEachAttemptResponseTimeout(
         timeoutProp: DynamicProperty<Duration>
@@ -187,7 +199,8 @@ interface TimeoutsConfiguringRetryingHttpClientBuilder :
 
     fun setWholeRequestTimeout(timeout: Duration): TimeoutsImmutableRetryingHttpClientBuilder
     /**
-     * [jfix-armeria-dynamic-request](https://github.com/ru-fix/jfix-armeria) dependency required.
+     * [jfix-armeria-dynamic-request](https://github.com/ru-fix/jfix-armeria) dependency
+     * OR Gradle capability _jfix-armeria-facade-dynamic-request-support_ required.
      */
     fun setWholeRequestTimeout(timeoutProperty: DynamicProperty<Duration>): TimeoutsImmutableRetryingHttpClientBuilder
 
@@ -196,7 +209,8 @@ interface TimeoutsConfiguringRetryingHttpClientBuilder :
         wholeRequestTimeout: Duration
     ): TimeoutsImmutableRetryingHttpClientBuilder
     /**
-     * [jfix-armeria-dynamic-request](https://github.com/ru-fix/jfix-armeria) dependency required.
+     * [jfix-armeria-dynamic-request](https://github.com/ru-fix/jfix-armeria) dependency
+     * OR Gradle capability _jfix-armeria-facade-dynamic-request-support_ required.
      */
     fun setResponseTimeouts(
         eachAttemptTimeout: Duration,

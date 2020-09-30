@@ -13,7 +13,8 @@ interface RetrofitHttpClientBuilder {
 
 
     /**
-     * [jfix-stdlib-concurrency](https://github.com/ru-fix/jfix-stdlib) dependency required.
+     * [jfix-stdlib-concurrency](https://github.com/ru-fix/jfix-stdlib) dependency
+     * OR Gradle capability _jfix-armeria-facade-jfix-stdlib-executors-support_ required.
      */
     fun enableNamedBlockingResponseReadingExecutor(
         maxPoolSizeProp: DynamicProperty<Int>,
@@ -22,7 +23,8 @@ interface RetrofitHttpClientBuilder {
     ): RetrofitHttpClientBuilder
 
     /**
-     * [jfix-stdlib-concurrency](https://github.com/ru-fix/jfix-stdlib) dependency required.
+     * [jfix-stdlib-concurrency](https://github.com/ru-fix/jfix-stdlib) dependency
+     * OR Gradle capability _jfix-armeria-facade-jfix-stdlib-executors-support_ required.
      */
     fun setBlockingResponseReadingExecutor(
         retrofitCallbackExecutor: ExecutorService,
@@ -30,7 +32,8 @@ interface RetrofitHttpClientBuilder {
     ): RetrofitHttpClientBuilder
 
     /**
-     * [jfix-stdlib-concurrency](https://github.com/ru-fix/jfix-stdlib) dependency required.
+     * [jfix-stdlib-concurrency](https://github.com/ru-fix/jfix-stdlib) dependency
+     * OR Gradle capability _jfix-armeria-facade-jfix-stdlib-executors-support_ required.
      */
     fun setBlockingResponseReadingExecutor(
         retrofitCallbackExecutor: ExecutorService,
