@@ -55,7 +55,7 @@ val signingPassword by envConfig()
 val signingSecretKeyRingFile by envConfig()
 
 nexusStaging {
-    packageGroup = "ru.fix"
+    packageGroup = ProjectGroup
     username = "$repositoryUser"
     password = "$repositoryPassword"
     numberOfRetries = 50
@@ -68,7 +68,7 @@ apply {
 
 subprojects {
 
-    group = "ru.fix"
+    group = ProjectGroup
 
     apply {
         plugin("maven-publish")

@@ -11,19 +11,32 @@ interface RetrofitHttpClientBuilder {
 
     fun addConverterFactory(factory: Converter.Factory): RetrofitHttpClientBuilder
 
+
+    /**
+     * [jfix-stdlib-concurrency](https://github.com/ru-fix/jfix-stdlib) dependency required.
+     */
     fun enableNamedBlockingResponseReadingExecutor(
         maxPoolSizeProp: DynamicProperty<Int>,
         profiler: Profiler,
         shutdownTimeoutProp: DynamicProperty<Duration>
     ): RetrofitHttpClientBuilder
+
+    /**
+     * [jfix-stdlib-concurrency](https://github.com/ru-fix/jfix-stdlib) dependency required.
+     */
     fun setBlockingResponseReadingExecutor(
         retrofitCallbackExecutor: ExecutorService,
         shutdownTimeout: Duration
     ): RetrofitHttpClientBuilder
+
+    /**
+     * [jfix-stdlib-concurrency](https://github.com/ru-fix/jfix-stdlib) dependency required.
+     */
     fun setBlockingResponseReadingExecutor(
         retrofitCallbackExecutor: ExecutorService,
         shutdownTimeoutProp: DynamicProperty<Duration>
     ): RetrofitHttpClientBuilder
+
 
     fun buildRetrofit(): CloseableRetrofit
 

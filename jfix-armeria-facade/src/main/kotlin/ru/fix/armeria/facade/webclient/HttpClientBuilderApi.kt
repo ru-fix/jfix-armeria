@@ -18,7 +18,7 @@ import java.time.Duration
 interface BaseHttpClientBuilder<out HttpClientBuilderT : BaseHttpClientBuilder<HttpClientBuilderT>> {
 
     /*
-     * Mandatory builder methods. endpoint or endpoint group must be formed
+     * Mandatory builder methods. Client name and endpoint/endpoint_group must be formed.
      */
 
     fun setClientName(clientName: String): HttpClientBuilderT
@@ -27,14 +27,21 @@ interface BaseHttpClientBuilder<out HttpClientBuilderT : BaseHttpClientBuilder<H
     fun setEndpoint(uri: URI): HttpClientBuilderT
     fun setEndpoint(host: String, port: Int): HttpClientBuilderT
 
+    /**
+     * [jfix-armeria-dynamic-request](https://github.com/ru-fix/jfix-armeria) dependency required.
+     */
     fun setDynamicEndpoint(
         addressProperty: DynamicProperty<SocketAddress>
     ): HttpClientBuilderT
-
+    /**
+     * [jfix-armeria-dynamic-request](https://github.com/ru-fix/jfix-armeria) dependency required.
+     */
     fun setDynamicEndpoints(
         addressListProperty: DynamicProperty<List<SocketAddress>>
     ): HttpClientBuilderT
-
+    /**
+     * [jfix-armeria-dynamic-request](https://github.com/ru-fix/jfix-armeria) dependency required.
+     */
     fun setDynamicEndpoints(
         addressListProperty: DynamicProperty<List<SocketAddress>>,
         endpointSelectionStrategy: EndpointSelectionStrategy
@@ -60,15 +67,24 @@ interface BaseHttpClientBuilder<out HttpClientBuilderT : BaseHttpClientBuilder<H
 
     fun setUseHttp2Preface(useHttp2Preface: Boolean): HttpClientBuilderT
 
+    /**
+     * [jfix-armeria-aggregating-profiler](https://github.com/ru-fix/jfix-armeria) dependency required.
+     */
     fun enableConnectionsProfiling(profiler: Profiler): HttpClientBuilderT
 
     /**
-     * [rateLimitedDispatcher] will be closed when closing corresponding [CloseableWebClient]
+     * [rateLimitedDispatcher] will be closed when closing corresponding [CloseableWebClient].
+     *
+     * [jfix-armeria-limiter](https://github.com/ru-fix/jfix-armeria) dependency required.
      */
     fun enableRateLimit(rateLimitedDispatcher: RateLimitedDispatcher): HttpClientBuilderT
 
     fun buildArmeriaWebClient(): CloseableWebClient
 
+    /**
+     * [armeria-retrofit2](https://mvnrepository.com/artifact/com.linecorp.armeria/armeria-retrofit2)
+     * dependency required.
+     */
     fun enableRetrofitSupport(): RetrofitHttpClientBuilder
 
 
@@ -103,13 +119,21 @@ interface PreparingHttpClientBuilder : BaseHttpClientBuilder<PreparingHttpClient
 
 interface NotRetryingHttpClientBuilder : BaseHttpClientBuilder<NotRetryingHttpClientBuilder> {
 
-
+    /**
+     * [jfix-armeria-aggregating-profiler](https://github.com/ru-fix/jfix-armeria) dependency required.
+     */
     fun enableRequestsProfiling(profiler: Profiler): NotRetryingHttpClientBuilder
 
     fun setResponseTimeout(timeout: Duration): NotRetryingHttpClientBuilder
+    /**
+     * [jfix-armeria-dynamic-request](https://github.com/ru-fix/jfix-armeria) dependency required.
+     */
     fun setResponseTimeout(timeoutProperty: DynamicProperty<Duration>): NotRetryingHttpClientBuilder
 
     fun setWriteRequestTimeout(timeout: Duration): NotRetryingHttpClientBuilder
+    /**
+     * [jfix-armeria-dynamic-request](https://github.com/ru-fix/jfix-armeria) dependency required.
+     */
     fun setWriteRequestTimeout(timeoutProperty: DynamicProperty<Duration>): NotRetryingHttpClientBuilder
 
 }
@@ -119,11 +143,20 @@ interface BaseRetryingHttpClientBuilder<BuilderT : BaseRetryingHttpClientBuilder
 
     fun enableSupportOfRetryAfterHeader(): BuilderT
 
+    /**
+     * [jfix-armeria-aggregating-profiler](https://github.com/ru-fix/jfix-armeria) dependency required.
+     */
     fun enableEachAttemptProfiling(profiler: Profiler): BuilderT
 
+    /**
+     * [jfix-armeria-aggregating-profiler](https://github.com/ru-fix/jfix-armeria) dependency required.
+     */
     fun enableWholeRequestProfiling(profiler: Profiler): BuilderT
 
     fun setEachAttemptWriteRequestTimeout(timeout: Duration): BuilderT
+    /**
+     * [jfix-armeria-dynamic-request](https://github.com/ru-fix/jfix-armeria) dependency required.
+     */
     fun setEachAttemptWriteRequestTimeout(timeoutProperty: DynamicProperty<Duration>): BuilderT
 
 }
@@ -145,17 +178,26 @@ interface TimeoutsConfiguringRetryingHttpClientBuilder :
     BaseRetryingHttpClientBuilder<TimeoutsConfiguringRetryingHttpClientBuilder> {
 
     fun setEachAttemptResponseTimeout(timeout: Duration): TimeoutsImmutableRetryingHttpClientBuilder
+    /**
+     * [jfix-armeria-dynamic-request](https://github.com/ru-fix/jfix-armeria) dependency required.
+     */
     fun setEachAttemptResponseTimeout(
         timeoutProp: DynamicProperty<Duration>
     ): TimeoutsImmutableRetryingHttpClientBuilder
 
     fun setWholeRequestTimeout(timeout: Duration): TimeoutsImmutableRetryingHttpClientBuilder
+    /**
+     * [jfix-armeria-dynamic-request](https://github.com/ru-fix/jfix-armeria) dependency required.
+     */
     fun setWholeRequestTimeout(timeoutProperty: DynamicProperty<Duration>): TimeoutsImmutableRetryingHttpClientBuilder
 
     fun setResponseTimeouts(
         eachAttemptTimeout: Duration,
         wholeRequestTimeout: Duration
     ): TimeoutsImmutableRetryingHttpClientBuilder
+    /**
+     * [jfix-armeria-dynamic-request](https://github.com/ru-fix/jfix-armeria) dependency required.
+     */
     fun setResponseTimeouts(
         eachAttemptTimeout: Duration,
         wholeRequestTimeoutProp: DynamicProperty<Duration>

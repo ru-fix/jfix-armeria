@@ -12,9 +12,9 @@ object Vers {
     const val kotlinx_coroutines = "1.3.8"
 
     // JFix components
-    const val aggregating_profiler = "1.6.5"
-    const val dynamic_property = "2.0.7"
-    const val jfix_stdlib = "3.0.9"
+    const val aggregating_profiler = "1.6.6"
+    const val dynamic_property = "2.0.8"
+    const val jfix_stdlib = "3.0.12"
 
     // Armeria and Retrofit
     const val armeria = "1.0.0"
@@ -77,6 +77,8 @@ object Libs {
     const val corounit_engine = "ru.fix:corounit-engine:${Vers.corounit}"
 }
 
+const val ProjectGroup = "ru.fix"
+
 enum class Projs {
 
     `aggregating-profiler`,
@@ -84,7 +86,54 @@ enum class Projs {
     `commons-testing`,
     `dynamic-request`,
     limiter,
-    facade;
+    facade,
+    `facade-all`;
 
-    val dependency get(): String = ":jfix-armeria-$name"
+    val moduleName get() = "jfix-armeria-$name"
+    val dependency get(): String = ":$moduleName"
+}
+
+enum class JFixArmeriaFacadeFeatures(
+    val featureName: String,
+    _capabilities: Set<String>
+) {
+
+    `dynamic-request support`(
+        "dynamicRequestSupport",
+        setOf(
+            "dynamic-request-support"
+        )
+    ),
+    `aggregating-profiler support`(
+        "aggregatingProfilerSupport",
+        setOf(
+            "aggregating-profiler-support"
+        )
+    ),
+    `rate-limiter support`(
+        "rateLimiterSupport",
+        setOf(
+            "rate-limiter-support"
+        )
+    ),
+    `retrofit support`(
+        "retrofitSupport",
+        setOf(
+            "retrofit-support"
+        )
+    ),
+    `retrofit with jfix-stdlib executors support`(
+        "retrofitWithJfixStdlibExecutorsSupport",
+        setOf(
+            "retrofit-support",
+            "jfix-stdlib-executors-support"
+        )
+    );
+
+    val capabilitiesNames: List<String> = _capabilities.map { "${Projs.facade.moduleName}-$it" }
+    val capabilitiesNotations: Array<String> = capabilitiesNames.map { "$ProjectGroup:$it" }.toTypedArray()
+
+    val api = "${featureName}Api"
+    val implementation = "${featureName}Implementation"
+
 }

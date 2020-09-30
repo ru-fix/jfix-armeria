@@ -6,7 +6,9 @@ val projects = listOf(
     "dynamic-request",
     "aggregating-profiler",
     "limiter",
-    "facade"
+    "facade",
+    "facade-all",
+    "facade-all-retrofit"
 ).map { "${rootProject.name}-$it" }
 
 for (project in projects) {

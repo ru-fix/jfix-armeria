@@ -1,6 +1,21 @@
+import JFixArmeriaFacadeFeatures.*
+
 plugins {
+    java
     kotlin("jvm")
 }
+java {
+    val main by sourceSets
+    for (facadeFeature in JFixArmeriaFacadeFeatures.values()) {
+        registerFeature(facadeFeature.featureName) {
+            usingSourceSet(main)
+            for (capabilityName in facadeFeature.capabilitiesNames) {
+                capability(group.toString(), capabilityName, version.toString())
+            }
+        }
+    }
+}
+
 
 dependencies {
     // Kotlin
@@ -8,16 +23,25 @@ dependencies {
     implementation(Libs.kotlin_jdk8)
 
     api(Libs.armeria)
-    implementation(Libs.armeria_retrofit2)
 
-    // jfix-armeria modules
-    api(project(Projs.`dynamic-request`.dependency))
+
+    // jfix-armeria optional modules
     implementation(project(Projs.commons.dependency))
-    implementation(project(Projs.`aggregating-profiler`.dependency))
-    implementation(project(Projs.limiter.dependency))
 
-    // jfix-components
-    implementation(Libs.jfix_stdlib_concurrency)
+    `dynamic-request support`.api(project(Projs.`dynamic-request`.dependency))
+    `dynamic-request support`.api(Libs.dynamic_property_api)
+
+    `aggregating-profiler support`.implementation(project(Projs.`aggregating-profiler`.dependency))
+    `aggregating-profiler support`.api(Libs.aggregating_profiler)
+
+    `rate-limiter support`.implementation(project(Projs.limiter.dependency))
+    `rate-limiter support`.api(Libs.jfix_stdlib_ratelimiter)
+
+    `retrofit support`.api(Libs.armeria_retrofit2)
+
+    `retrofit with jfix-stdlib executors support`.api(Libs.armeria_retrofit2)
+    `retrofit with jfix-stdlib executors support`.implementation(Libs.jfix_stdlib_concurrency)
+
 
     // Logging
     implementation(Libs.log4j_kotlin)
