@@ -24,6 +24,9 @@ object Vers {
     const val log4j = "2.12.0"
     const val log4j_kotlin = "1.0.0"
 
+    // Spring
+    const val spring_boot = "2.3.4.RELEASE"
+
     // Testing
     const val junit = "5.6.2"
     const val kotest = "4.2.0"
@@ -42,12 +45,14 @@ object Libs {
     const val asciidoctor_plugin = "org.asciidoctor:asciidoctor-gradle-plugin:${Vers.asciidoctor_plugin}"
     const val nexus_staging_plugin_id = "io.codearte.nexus-staging"
     const val nexus_publish_plugin_id = "de.marcphilipp.nexus-publish"
+    const val spring_boot_plugin_id = "org.springframework.boot"
 
     // Kotlin
     const val kotlin_stdlib = "org.jetbrains.kotlin:kotlin-stdlib:${Vers.kotlin}"
     const val kotlin_jdk8 = "org.jetbrains.kotlin:kotlin-stdlib-jdk8:${Vers.kotlin}"
     const val kotlinx_coroutines_core = "org.jetbrains.kotlinx:kotlinx-coroutines-core:${Vers.kotlinx_coroutines}"
     const val kotlinx_coroutines_jdk8 = "org.jetbrains.kotlinx:kotlinx-coroutines-jdk8:${Vers.kotlinx_coroutines}"
+    const val kotlinx_coroutines_reactor = "org.jetbrains.kotlinx:kotlinx-coroutines-reactor:${Vers.kotlinx_coroutines}"
 
     // JFix components
     const val dynamic_property_api = "ru.fix:dynamic-property-api:${Vers.dynamic_property}"
@@ -69,6 +74,9 @@ object Libs {
     // Retrofit
     const val retrofit2_converter_jackson = "com.squareup.retrofit2:converter-jackson:${Vers.retrofit}"
     const val retrofit2_converter_scalars = "com.squareup.retrofit2:converter-scalars:${Vers.retrofit}"
+
+    // Spring
+    const val spring_boot_starter_webflux = "org.springframework.boot:spring-boot-starter-webflux:${Vers.spring_boot}"
 
     // Testing
     const val junit_api = "org.junit.jupiter:junit-jupiter-api:${Vers.junit}"
