@@ -5,7 +5,10 @@ val projects = listOf(
     "commons-testing",
     "dynamic-request",
     "aggregating-profiler",
-    "limiter"
+    "limiter",
+    "facade",
+    "facade-all",
+    "facade-all-retrofit"
 ).map { "${rootProject.name}-$it" }
 
 for (project in projects) {

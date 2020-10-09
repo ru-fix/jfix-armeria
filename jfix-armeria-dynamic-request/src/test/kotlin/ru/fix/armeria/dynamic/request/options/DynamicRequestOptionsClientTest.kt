@@ -39,7 +39,7 @@ internal class DynamicRequestOptionsClientTest {
         val readTimeoutProperty = AtomicProperty(2.seconds)
         val client = WebClient.builder(mockServer.httpUri())
             .decorator(
-                DynamicRequestOptionsClient.newHttpDecorator(readTimeoutProperty.map { it.j })
+                DynamicRequestOptionsClient.newHttpDecoratorWithReadTimeout(readTimeoutProperty.map { it.j })
             ).build()
         val delayedResponseCreator: () -> HttpResponse = {
             HttpResponse.delayed(HttpResponse.of(HttpStatus.OK), 1.seconds.j)

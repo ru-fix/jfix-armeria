@@ -12,12 +12,13 @@ object Vers {
     const val kotlinx_coroutines = "1.3.8"
 
     // JFix components
-    const val aggregating_profiler = "1.6.5"
-    const val dynamic_property = "2.0.7"
-    const val jfix_stdlib = "3.0.9"
+    const val aggregating_profiler = "1.6.6"
+    const val dynamic_property = "2.0.8"
+    const val jfix_stdlib = "3.0.12"
 
-    // Armeria
-    const val armeria = "1.0.0"
+    // Armeria and Retrofit
+    const val armeria = "1.1.0"
+    const val retrofit = "2.9.0"
 
     // Logging
     const val log4j = "2.12.0"
@@ -25,7 +26,7 @@ object Vers {
 
     // Testing
     const val junit = "5.6.2"
-    const val kotest = "4.1.3"
+    const val kotest = "4.2.0"
     const val mockk = "1.10.0"
     const val corounit = "1.0.32"
 }
@@ -62,15 +63,21 @@ object Libs {
     const val armeria = "com.linecorp.armeria:armeria:${Vers.armeria}"
     const val armeria_retrofit2 = "com.linecorp.armeria:armeria-retrofit2:${Vers.armeria}"
 
+    // Retrofit
+    const val retrofit2_converter_jackson = "com.squareup.retrofit2:converter-jackson:${Vers.retrofit}"
+
     // Testing
     const val junit_api = "org.junit.jupiter:junit-jupiter-api:${Vers.junit}"
     const val junit_params = "org.junit.jupiter:junit-jupiter-params:${Vers.junit}"
     const val junit_engine = "org.junit.jupiter:junit-jupiter-engine:${Vers.junit}"
     const val armeria_junit5 = "com.linecorp.armeria:armeria-junit5:${Vers.armeria}"
     const val kotest_assertions_core_jvm = "io.kotest:kotest-assertions-core-jvm:${Vers.kotest}"
+    const val kotest_assertions_json_jvm = "io.kotest:kotest-assertions-json-jvm:${Vers.kotest}"
     const val mockk = "io.mockk:mockk:${Vers.mockk}"
     const val corounit_engine = "ru.fix:corounit-engine:${Vers.corounit}"
 }
+
+const val ProjectGroup = "ru.fix"
 
 enum class Projs {
 
@@ -78,7 +85,55 @@ enum class Projs {
     commons,
     `commons-testing`,
     `dynamic-request`,
-    limiter;
+    limiter,
+    facade,
+    `facade-all`;
 
-    val dependency get(): String = ":jfix-armeria-$name"
+    val moduleName get() = "jfix-armeria-$name"
+    val dependency get(): String = ":$moduleName"
+}
+
+enum class JFixArmeriaFacadeFeatures(
+    val featureName: String,
+    _capabilities: Set<String>
+) {
+
+    `dynamic-request support`(
+        "dynamicRequestSupport",
+        setOf(
+            "dynamic-request-support"
+        )
+    ),
+    `aggregating-profiler support`(
+        "aggregatingProfilerSupport",
+        setOf(
+            "aggregating-profiler-support"
+        )
+    ),
+    `rate-limiter support`(
+        "rateLimiterSupport",
+        setOf(
+            "rate-limiter-support"
+        )
+    ),
+    `retrofit support`(
+        "retrofitSupport",
+        setOf(
+            "retrofit-support"
+        )
+    ),
+    `retrofit with jfix-stdlib executors support`(
+        "retrofitWithJfixStdlibExecutorsSupport",
+        setOf(
+            "retrofit-support",
+            "jfix-stdlib-executors-support"
+        )
+    );
+
+    val capabilitiesNames: List<String> = _capabilities.map { "${Projs.facade.moduleName}-$it" }
+    val capabilitiesNotations: Array<String> = capabilitiesNames.map { "$ProjectGroup:$it" }.toTypedArray()
+
+    val api = "${featureName}Api"
+    val implementation = "${featureName}Implementation"
+
 }
