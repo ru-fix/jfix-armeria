@@ -1,6 +1,5 @@
 package ru.fix.armeria.facade.webclient.impl
 
-import ru.fix.armeria.facade.Either
 import com.linecorp.armeria.client.*
 import com.linecorp.armeria.client.endpoint.EndpointGroup
 import com.linecorp.armeria.client.endpoint.EndpointSelectionStrategy
@@ -31,10 +30,8 @@ internal data class BaseHttpClientBuilderState(
         throw IllegalStateException("clientName must be set")
     },
     val sessionProtocol: SessionProtocol = SessionProtocol.HTTP,
-    val ignoreEndpoints: Boolean = false,
-    val endpointGroupCreator: () -> Either<Lazy<EndpointGroup>, URI> = {
-        throw IllegalStateException("endpoint/endpoint_group or URI must be set")
-    },
+    val endpointGroup: EndpointGroup? = null,
+    val endpoint: URI? = null,
     val ioThreadsCount: Int? = null,
     val clientFactoryBuilder: () -> ClientFactoryBuilder = { ClientFactory.builder() },
     val clientFactoryBuilderCustomizer: ClientFactoryBuilder.() -> ClientFactoryBuilder = { this },
@@ -58,58 +55,42 @@ internal abstract class BaseHttpClientBuilderImpl<out HttpClientBuilderT : BaseH
         baseBuilderState.copy(clientNameCreator = { clientName })
     )
 
-    override fun setIgnoreEndpoint(ignore: Boolean) = copyOfThisBuilder(
-            baseBuilderState.copy(ignoreEndpoints = ignore)
-    )
-
     override fun setEndpoint(uri: URI) = copyOfThisBuilder(
-        baseBuilderState.copy(endpointGroupCreator = {
-            Either.Right(uri)
-        })
+        baseBuilderState.copy(endpoint = uri)
     )
 
     override fun setEndpoint(host: String, port: Int) = copyOfThisBuilder(
-        baseBuilderState.copy(endpointGroupCreator = {
-            Either.Left(lazy {
-                Endpoint.of(host, port)
-            })
-        })
+        baseBuilderState.copy(endpointGroup =
+            Endpoint.of(host, port)
+        )
     )
 
     override fun setDynamicEndpoint(addressProperty: DynamicProperty<SocketAddress>) = copyOfThisBuilder(
-        baseBuilderState.copy(endpointGroupCreator = {
-            Either.Left(lazy {
-                DynamicAddressEndpoints.dynamicAddressEndpoint(
-                    addressProperty
-                )
-            })
-        })
+        baseBuilderState.copy(endpointGroup =
+            DynamicAddressEndpoints.dynamicAddressEndpoint(
+                addressProperty
+            )
+        )
     )
 
     override fun setDynamicEndpoints(addressListProperty: DynamicProperty<List<SocketAddress>>) =
         copyOfThisBuilder(
-            baseBuilderState.copy(endpointGroupCreator = {
-                Either.Left(lazy {
-                    DynamicAddressEndpoints.dynamicAddressListEndpointGroup(addressListProperty)
-                })
-            })
+            baseBuilderState.copy(endpointGroup =
+                DynamicAddressEndpoints.dynamicAddressListEndpointGroup(addressListProperty)
+            )
         )
 
     override fun setDynamicEndpoints(
         addressListProperty: DynamicProperty<List<SocketAddress>>,
         endpointSelectionStrategy: EndpointSelectionStrategy
     ) = copyOfThisBuilder(
-        baseBuilderState.copy(endpointGroupCreator = {
-            Either.Left(lazy {
-                DynamicAddressEndpoints.dynamicAddressListEndpointGroup(addressListProperty, endpointSelectionStrategy)
-            })
-        })
+        baseBuilderState.copy(endpointGroup =
+            DynamicAddressEndpoints.dynamicAddressListEndpointGroup(addressListProperty, endpointSelectionStrategy)
+        )
     )
 
     override fun setEndpointGroup(endpointGroup: EndpointGroup): HttpClientBuilderT = copyOfThisBuilder(
-        baseBuilderState.copy(endpointGroupCreator = {
-            Either.Left(lazyOf(endpointGroup))
-        })
+        baseBuilderState.copy(endpointGroup = endpointGroup)
     )
 
     override fun setIoThreadsCount(count: Int) = copyOfThisBuilder(
@@ -155,18 +136,14 @@ internal abstract class BaseHttpClientBuilderImpl<out HttpClientBuilderT : BaseH
         }
         clientName = baseBuilderState.clientNameCreator()
 
-        val endpointGroup: EndpointGroup?
-        val webClientBuilder = if (baseBuilderState.ignoreEndpoints) {
-            endpointGroup = null
-            WebClient.builder()
-        } else {
-            val endpoints = baseBuilderState.endpointGroupCreator()
-            endpointGroup = endpoints.leftOrNull?.value
-            when (endpoints) {
-                is Either.Left -> WebClient.builder(baseBuilderState.sessionProtocol, endpoints.value.value)
-                is Either.Right -> WebClient.builder(endpoints.value)
+        val webClientBuilder =
+            if (baseBuilderState.endpointGroup != null) {
+                WebClient.builder(baseBuilderState.sessionProtocol, baseBuilderState.endpointGroup)
+            } else if (baseBuilderState.endpoint != null) {
+                WebClient.builder(baseBuilderState.endpoint)
+            } else {
+                WebClient.builder()
             }
-        }
         // build ClientFactory
         var clientFactoryBuilder: ClientFactoryBuilder = baseBuilderState.clientFactoryBuilder()
         clientFactoryBuilder = clientFactoryBuilder.workerGroup(
@@ -207,9 +184,9 @@ internal abstract class BaseHttpClientBuilderImpl<out HttpClientBuilderT : BaseH
                     }
                     logger.info { "$clientName: closing http client factory under the hood..." }
                     clientFactory.close()
-                    if (endpointGroup != null) {
+                    if (baseBuilderState.endpointGroup != null) {
                         logger.info { "$clientName: closing endpoint (group)..." }
-                        endpointGroup.close()
+                        baseBuilderState.endpointGroup.close()
                     }
                 }
                 logger.info { """Armeria http client "$clientName" closed in $closingTimeMillis ms.""" }

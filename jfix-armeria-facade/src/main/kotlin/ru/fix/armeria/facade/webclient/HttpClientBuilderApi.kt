@@ -23,8 +23,6 @@ interface BaseHttpClientBuilder<out HttpClientBuilderT : BaseHttpClientBuilder<H
 
     fun setClientName(clientName: String): HttpClientBuilderT
 
-    fun setIgnoreEndpoint(ignore: Boolean): HttpClientBuilderT
-
     fun setEndpoint(uri: String): HttpClientBuilderT = setEndpoint(URI.create(uri))
     fun setEndpoint(uri: URI): HttpClientBuilderT
     fun setEndpoint(host: String, port: Int): HttpClientBuilderT
