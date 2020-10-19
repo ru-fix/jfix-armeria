@@ -31,6 +31,7 @@ internal data class BaseHttpClientBuilderState(
         throw IllegalStateException("clientName must be set")
     },
     val sessionProtocol: SessionProtocol = SessionProtocol.HTTP,
+    val ignoreEndpoints: Boolean = false,
     val endpointGroupCreator: () -> Either<Lazy<EndpointGroup>, URI> = {
         throw IllegalStateException("endpoint/endpoint_group or URI must be set")
     },
@@ -55,6 +56,10 @@ internal abstract class BaseHttpClientBuilderImpl<out HttpClientBuilderT : BaseH
 
     override fun setClientName(clientName: String) = copyOfThisBuilder(
         baseBuilderState.copy(clientNameCreator = { clientName })
+    )
+
+    override fun setIgnoreEndpoint(ignore: Boolean) = copyOfThisBuilder(
+            baseBuilderState.copy(ignoreEndpoints = ignore)
     )
 
     override fun setEndpoint(uri: URI) = copyOfThisBuilder(
@@ -150,13 +155,18 @@ internal abstract class BaseHttpClientBuilderImpl<out HttpClientBuilderT : BaseH
         }
         clientName = baseBuilderState.clientNameCreator()
 
-        val endpointGroup = baseBuilderState.endpointGroupCreator()
-
-        val webClientBuilder = when (endpointGroup) {
-            is Either.Left -> WebClient.builder(baseBuilderState.sessionProtocol, endpointGroup.value.value)
-            is Either.Right -> WebClient.builder(endpointGroup.value)
+        val endpointGroup: EndpointGroup?
+        val webClientBuilder = if (baseBuilderState.ignoreEndpoints) {
+            endpointGroup = null
+            WebClient.builder()
+        } else {
+            val endpoints = baseBuilderState.endpointGroupCreator()
+            endpointGroup = endpoints.leftOrNull?.value
+            when (endpoints) {
+                is Either.Left -> WebClient.builder(baseBuilderState.sessionProtocol, endpoints.value.value)
+                is Either.Right -> WebClient.builder(endpoints.value)
+            }
         }
-
         // build ClientFactory
         var clientFactoryBuilder: ClientFactoryBuilder = baseBuilderState.clientFactoryBuilder()
         clientFactoryBuilder = clientFactoryBuilder.workerGroup(
@@ -197,9 +207,9 @@ internal abstract class BaseHttpClientBuilderImpl<out HttpClientBuilderT : BaseH
                     }
                     logger.info { "$clientName: closing http client factory under the hood..." }
                     clientFactory.close()
-                    endpointGroup.leftOrNull?.let {
+                    if (endpointGroup != null) {
                         logger.info { "$clientName: closing endpoint (group)..." }
-                        it.value.close()
+                        endpointGroup.close()
                     }
                 }
                 logger.info { """Armeria http client "$clientName" closed in $closingTimeMillis ms.""" }
