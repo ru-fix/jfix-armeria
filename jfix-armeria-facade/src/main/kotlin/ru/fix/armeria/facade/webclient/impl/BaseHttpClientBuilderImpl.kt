@@ -13,6 +13,7 @@ import ru.fix.armeria.aggregating.profiler.ProfiledConnectionPoolListener
 import ru.fix.armeria.commons.AutoCloseableHttpClient
 import ru.fix.armeria.dynamic.request.endpoint.DynamicAddressEndpoints
 import ru.fix.armeria.dynamic.request.endpoint.SocketAddress
+import ru.fix.armeria.facade.Either
 import ru.fix.armeria.facade.retrofit.RetrofitHttpClientBuilder
 import ru.fix.armeria.facade.retrofit.impl.RetrofitHttpClientBuilderImpl
 import ru.fix.armeria.facade.webclient.BaseHttpClientBuilder
@@ -30,8 +31,7 @@ internal data class BaseHttpClientBuilderState(
         throw IllegalStateException("clientName must be set")
     },
     val sessionProtocol: SessionProtocol = SessionProtocol.HTTP,
-    val endpointGroup: EndpointGroup? = null,
-    val endpoint: URI? = null,
+    val endpoint: Either<EndpointGroup, URI>? = null,
     val ioThreadsCount: Int? = null,
     val clientFactoryBuilder: () -> ClientFactoryBuilder = { ClientFactory.builder() },
     val clientFactoryBuilderCustomizer: ClientFactoryBuilder.() -> ClientFactoryBuilder = { this },
@@ -56,41 +56,32 @@ internal abstract class BaseHttpClientBuilderImpl<out HttpClientBuilderT : BaseH
     )
 
     override fun setEndpoint(uri: URI) = copyOfThisBuilder(
-        baseBuilderState.copy(endpoint = uri)
+            baseBuilderState.copy(endpoint = Either.Right(uri))
     )
 
     override fun setEndpoint(host: String, port: Int) = copyOfThisBuilder(
-        baseBuilderState.copy(endpointGroup =
-            Endpoint.of(host, port)
-        )
+            baseBuilderState.copy(endpoint = Either.Left(Endpoint.of(host, port)))
     )
 
     override fun setDynamicEndpoint(addressProperty: DynamicProperty<SocketAddress>) = copyOfThisBuilder(
-        baseBuilderState.copy(endpointGroup =
-            DynamicAddressEndpoints.dynamicAddressEndpoint(
-                addressProperty
-            )
-        )
+            baseBuilderState.copy(endpoint = Either.Left(DynamicAddressEndpoints.dynamicAddressEndpoint(addressProperty)))
     )
 
     override fun setDynamicEndpoints(addressListProperty: DynamicProperty<List<SocketAddress>>) =
-        copyOfThisBuilder(
-            baseBuilderState.copy(endpointGroup =
-                DynamicAddressEndpoints.dynamicAddressListEndpointGroup(addressListProperty)
-            )
-        )
+            copyOfThisBuilder(baseBuilderState.copy(endpoint =
+            Either.Left(DynamicAddressEndpoints.dynamicAddressListEndpointGroup(addressListProperty))))
 
     override fun setDynamicEndpoints(
-        addressListProperty: DynamicProperty<List<SocketAddress>>,
-        endpointSelectionStrategy: EndpointSelectionStrategy
+            addressListProperty: DynamicProperty<List<SocketAddress>>,
+            endpointSelectionStrategy: EndpointSelectionStrategy
     ) = copyOfThisBuilder(
-        baseBuilderState.copy(endpointGroup =
-            DynamicAddressEndpoints.dynamicAddressListEndpointGroup(addressListProperty, endpointSelectionStrategy)
-        )
+            baseBuilderState.copy(endpoint =
+            Either.Left(DynamicAddressEndpoints.dynamicAddressListEndpointGroup(addressListProperty, endpointSelectionStrategy))
+            )
     )
 
     override fun setEndpointGroup(endpointGroup: EndpointGroup): HttpClientBuilderT = copyOfThisBuilder(
-        baseBuilderState.copy(endpointGroup = endpointGroup)
+            baseBuilderState.copy(endpoint = Either.Left(endpointGroup))
     )
 
     override fun setIoThreadsCount(count: Int) = copyOfThisBuilder(
@@ -137,13 +128,14 @@ internal abstract class BaseHttpClientBuilderImpl<out HttpClientBuilderT : BaseH
         clientName = baseBuilderState.clientNameCreator()
 
         val webClientBuilder =
-            if (baseBuilderState.endpointGroup != null) {
-                WebClient.builder(baseBuilderState.sessionProtocol, baseBuilderState.endpointGroup)
-            } else if (baseBuilderState.endpoint != null) {
-                WebClient.builder(baseBuilderState.endpoint)
-            } else {
-                WebClient.builder()
-            }
+                if (baseBuilderState.endpoint != null) {
+                    when (baseBuilderState.endpoint) {
+                        is Either.Left -> WebClient.builder(baseBuilderState.sessionProtocol, baseBuilderState.endpoint.value)
+                        is Either.Right -> WebClient.builder(baseBuilderState.endpoint.value)
+                    }
+                } else {
+                    WebClient.builder()
+                }
         // build ClientFactory
         var clientFactoryBuilder: ClientFactoryBuilder = baseBuilderState.clientFactoryBuilder()
         clientFactoryBuilder = clientFactoryBuilder.workerGroup(
@@ -184,9 +176,9 @@ internal abstract class BaseHttpClientBuilderImpl<out HttpClientBuilderT : BaseH
                     }
                     logger.info { "$clientName: closing http client factory under the hood..." }
                     clientFactory.close()
-                    if (baseBuilderState.endpointGroup != null) {
+                    baseBuilderState.endpoint?.leftOrNull?.let {
                         logger.info { "$clientName: closing endpoint (group)..." }
-                        baseBuilderState.endpointGroup.close()
+                        it.close()
                     }
                 }
                 logger.info { """Armeria http client "$clientName" closed in $closingTimeMillis ms.""" }
