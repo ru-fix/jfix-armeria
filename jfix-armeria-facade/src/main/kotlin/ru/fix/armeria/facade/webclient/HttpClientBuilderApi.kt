@@ -18,7 +18,7 @@ import java.time.Duration
 interface BaseHttpClientBuilder<out HttpClientBuilderT : BaseHttpClientBuilder<HttpClientBuilderT>> {
 
     /*
-     * Mandatory builder methods. Client name and endpoint/endpoint_group must be formed.
+     * Methods could be omitted. If so, default WebClient without endpoint_group/endpoint will be built
      */
 
     fun setClientName(clientName: String): HttpClientBuilderT
