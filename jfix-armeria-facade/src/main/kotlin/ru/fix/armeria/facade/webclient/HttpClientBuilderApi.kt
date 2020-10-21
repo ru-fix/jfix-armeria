@@ -18,10 +18,14 @@ import java.time.Duration
 interface BaseHttpClientBuilder<out HttpClientBuilderT : BaseHttpClientBuilder<HttpClientBuilderT>> {
 
     /*
-     * Mandatory builder methods. Client name and endpoint/endpoint_group must be formed.
+     * Mandatory builder method. Client name must be formed.
      */
 
     fun setClientName(clientName: String): HttpClientBuilderT
+
+    /*
+     * Methods could be omitted. If so, default WebClient without endpoint_group/endpoint will be built
+     */
 
     fun setEndpoint(uri: String): HttpClientBuilderT = setEndpoint(URI.create(uri))
     fun setEndpoint(uri: URI): HttpClientBuilderT
@@ -56,11 +60,6 @@ interface BaseHttpClientBuilder<out HttpClientBuilderT : BaseHttpClientBuilder<H
     fun setEndpointGroup(
         endpointGroup: EndpointGroup
     ): HttpClientBuilderT
-
-    /*
-     * END Mandatory builder methods.
-     */
-
 
     fun setIoThreadsCount(count: Int): HttpClientBuilderT
 
