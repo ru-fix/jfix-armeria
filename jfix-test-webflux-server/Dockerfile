@@ -14,8 +14,7 @@ ENV TZ=Europe/Moscow
 
 COPY ./build/libs/test-webflux-server.jar test-webflux-server.jar
 
-ENTRYPOINT ["java", "-jar", "test-webflux-server.jar"]
-CMD ["--add-modules java.se \
+ENTRYPOINT ["java", "-jar", "test-webflux-server.jar", "--add-modules java.se \
     --add-exports java.base/jdk.internal.ref=ALL-UNNAMED \
     --add-opens java.base/java.lang=ALL-UNNAMED \
     --add-opens java.base/java.nio=ALL-UNNAMED \
