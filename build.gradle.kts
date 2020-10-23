@@ -198,7 +198,6 @@ subprojects {
             }
         }
         "test"(Test::class) {
-        //withType<Test> {
             useJUnitPlatform {
                 excludeTags("integration")
             }
@@ -211,7 +210,7 @@ subprojects {
                 exceptionFormat = TestExceptionFormat.FULL
             }
         }
-        create<Test>("integration-test") {
+        create<Test>("integrationTest") {
             description = "Runs integration tests."
             group = "verification"
 
