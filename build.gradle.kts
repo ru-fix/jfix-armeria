@@ -33,6 +33,8 @@ plugins {
     id(Libs.nexus_publish_plugin_id) version Vers.nexus_publish_plugin apply false
     id(Libs.nexus_staging_plugin_id) version Vers.nexus_staging_plugin
     id(Libs.asciidoctor_plugin_id) version Vers.asciidoctor_plugin
+    id(Libs.spring_boot_plugin_id) version Vers.spring_boot apply false
+    id(Libs.docker_spring_boot_plugin_id) version Vers.docker_plugin apply false
 }
 
 /**

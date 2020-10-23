@@ -1,8 +1,8 @@
 plugins {
     java
     kotlin("jvm")
-    id(Libs.spring_boot_plugin_id) version Vers.spring_boot
-    id(Libs.docker_spring_boot_plugin_id) version Vers.docker_plugin
+    id(Libs.spring_boot_plugin_id)
+    id(Libs.docker_spring_boot_plugin_id)
 }
 
 //version = ""

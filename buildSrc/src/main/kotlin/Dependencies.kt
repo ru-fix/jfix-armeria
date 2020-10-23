@@ -102,8 +102,6 @@ object Libs {
 
 const val ProjectGroup = "ru.fix"
 
-const val ProjectGroup = "ru.fix"
-
 enum class Projs {
 
     `aggregating-profiler`,
