@@ -16,9 +16,8 @@ jobs:
     - stage: integration test
       if: tag IS blank
       install: skip
-      script:
-        - ./gradlew dockerBuildImage
-        - ./gradlew integrationTest
+      before_script: ./gradlew dockerBuildImage
+      script: ./gradlew integrationTest
 
     - stage: deploy
       if: tag =~ ^\d+\.\d+\.\d+$
