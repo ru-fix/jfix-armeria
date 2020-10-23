@@ -58,8 +58,8 @@ dependencies {
     testRuntimeOnly(Libs.junit_engine)
     testRuntimeOnly(Libs.corounit_engine)
     //  Kotest
-    testImplementation(Libs.kotest_assertions_core_jvm)
-    testImplementation(Libs.kotest_assertions_json_jvm)
+    testImplementation(Libs.kotest_assertions_core)
+    testImplementation(Libs.kotest_assertions_json)
     //  Test Logging
     testRuntimeOnly(Libs.log4j_core)
     testRuntimeOnly(Libs.slf4j_over_log4j)

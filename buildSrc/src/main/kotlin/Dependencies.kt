@@ -33,7 +33,6 @@ object Vers {
     const val kotest = "4.3.0"
     const val mockk = "1.10.0"
     const val corounit = "1.0.32"
-    const val mockserver = "5.11.1"
     const val testcontainers = "1.14.3"
 }
 
@@ -89,14 +88,13 @@ object Libs {
     const val armeria_junit5 = "com.linecorp.armeria:armeria-junit5:${Vers.armeria}"
     //  Kotest
     const val kotest_engine = "io.kotest:kotest-runner-junit5:${Vers.kotest}"
-    const val kotest_assertions_core_jvm = "io.kotest:kotest-assertions-core:${Vers.kotest}"
-    const val kotest_assertions_json_jvm = "io.kotest:kotest-assertions-json:${Vers.kotest}"
+    const val kotest_assertions_core = "io.kotest:kotest-assertions-core:${Vers.kotest}"
+    const val kotest_assertions_json = "io.kotest:kotest-assertions-json:${Vers.kotest}"
     //  Corounit
     const val corounit_engine = "ru.fix:corounit-engine:${Vers.corounit}"
     const val mockk = "io.mockk:mockk:${Vers.mockk}"
-    // TestContainers
+    //  TestContainers
     const val testcontainers = "org.testcontainers:testcontainers:${Vers.testcontainers}"
-    const val testcontainers_junit_jupiter = "org.testcontainers:junit-jupiter:${Vers.testcontainers}"
     const val testcontainers_toxiproxy = "org.testcontainers:toxiproxy:${Vers.testcontainers}"
 }
 

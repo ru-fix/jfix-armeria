@@ -5,8 +5,6 @@ plugins {
     id(Libs.docker_spring_boot_plugin_id)
 }
 
-//version = ""
-
 dependencies {
     implementation(Libs.kotlin_stdlib)
     implementation(Libs.kotlin_jdk8)
