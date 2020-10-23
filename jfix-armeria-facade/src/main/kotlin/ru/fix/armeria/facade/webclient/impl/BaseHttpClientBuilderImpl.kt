@@ -31,8 +31,8 @@ internal data class BaseHttpClientBuilderState(
         throw IllegalStateException("clientName must be set")
     },
     val sessionProtocol: SessionProtocol = SessionProtocol.HTTP,
-    val endpointGroupCreator: () -> Either<Lazy<EndpointGroup>, URI> = {
-        throw IllegalStateException("endpoint/endpoint_group or URI must be set")
+    val endpointGroupCreator: () -> Either<Lazy<EndpointGroup>, URI>? = {
+        null
     },
     val ioThreadsCount: Int? = null,
     val clientFactoryBuilder: () -> ClientFactoryBuilder = { ClientFactory.builder() },
@@ -155,6 +155,7 @@ internal abstract class BaseHttpClientBuilderImpl<out HttpClientBuilderT : BaseH
         val webClientBuilder = when (endpointGroup) {
             is Either.Left -> WebClient.builder(baseBuilderState.sessionProtocol, endpointGroup.value.value)
             is Either.Right -> WebClient.builder(endpointGroup.value)
+            else -> WebClient.builder()
         }
 
         // build ClientFactory
@@ -197,7 +198,7 @@ internal abstract class BaseHttpClientBuilderImpl<out HttpClientBuilderT : BaseH
                     }
                     logger.info { "$clientName: closing http client factory under the hood..." }
                     clientFactory.close()
-                    endpointGroup.leftOrNull?.let {
+                    endpointGroup?.leftOrNull?.let {
                         logger.info { "$clientName: closing endpoint (group)..." }
                         it.value.close()
                     }
