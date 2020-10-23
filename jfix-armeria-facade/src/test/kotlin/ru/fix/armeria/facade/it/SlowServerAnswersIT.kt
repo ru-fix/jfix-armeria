@@ -11,7 +11,6 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.time.withTimeout
 import org.apache.logging.log4j.kotlin.Logging
-import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.DynamicTest
 import org.junit.jupiter.api.TestFactory
 import org.junit.jupiter.api.TestInstance
@@ -30,14 +29,13 @@ import ru.fix.armeria.facade.HttpClients
 import ru.fix.armeria.facade.Metrics
 import ru.fix.armeria.facade.ProfilerTestUtils.profiledCallReportWithName
 import ru.fix.dynamic.property.api.DynamicProperty
-import java.util.concurrent.ForkJoinPool
 import kotlin.time.ExperimentalTime
 import kotlin.time.milliseconds
 import kotlin.time.seconds
 
 @ExperimentalTime
 @IntegrationTest
-@Execution(ExecutionMode.CONCURRENT)
+@Execution(ExecutionMode.SAME_THREAD)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class SlowServerAnswersIT {
 
@@ -50,8 +48,7 @@ class SlowServerAnswersIT {
                 testClientCreator = { (clientName, profiler) ->
                     val closeableWebClient = HttpClients.builder()
                         .setClientName(clientName)
-                        .setEndpoint(mockServerContainer.host, JFixTestWebfluxServerContainer.serverPort)
-                        .setIoThreadsCount(1)
+                        .setEndpoint(mockServerContainer.host, mockServerContainer.serverPort)
                         .enableConnectionsProfiling(profiler)
                         .withoutRetries()
                         .setResponseTimeout(15.seconds.j)
@@ -67,8 +64,7 @@ class SlowServerAnswersIT {
                 testClientCreator = { (clientName, profiler) ->
                     val closeableWebClient = HttpClients.builder()
                         .setClientName(clientName)
-                        .setEndpoint(mockServerContainer.host, JFixTestWebfluxServerContainer.serverPort)
-                        .setIoThreadsCount(1)
+                        .setEndpoint(mockServerContainer.host, mockServerContainer.serverPort)
                         .enableConnectionsProfiling(profiler)
                         .withRetriesOn503AndUnprocessedError(3)
                         .withCustomResponseTimeouts()
@@ -87,8 +83,7 @@ class SlowServerAnswersIT {
                 testClientCreator = { (clientName, profiler) ->
                     val closeableRetrofit = HttpClients.builder()
                         .setClientName(clientName)
-                        .setEndpoint(mockServerContainer.host, JFixTestWebfluxServerContainer.serverPort)
-                        .setIoThreadsCount(1)
+                        .setEndpoint(mockServerContainer.host, mockServerContainer.serverPort)
                         .enableConnectionsProfiling(profiler)
                         .withoutRetries()
                         .setResponseTimeout(15.seconds.j)
@@ -111,8 +106,7 @@ class SlowServerAnswersIT {
                 testClientCreator = { (clientName, profiler) ->
                     val closeableRetrofit = HttpClients.builder()
                         .setClientName(clientName)
-                        .setEndpoint(JFixTestWebfluxServerContainer.host, JFixTestWebfluxServerContainer.serverPort)
-                        .setIoThreadsCount(1)
+                        .setEndpoint(mockServerContainer.host, mockServerContainer.serverPort)
                         .enableConnectionsProfiling(profiler)
                         .withRetriesOn503AndUnprocessedError(3)
                         .withCustomResponseTimeouts()
@@ -140,7 +134,7 @@ class SlowServerAnswersIT {
                 val (clientName, expectedMetricSuffix, reporter, testApi, autoCloseableResource) = testCase()
                 val mockServer = mockServerContainer
                 val mockServerHost = mockServer.host
-                val mockServerPort = JFixTestWebfluxServerContainer.serverPort
+                val mockServerPort = mockServer.serverPort
 
                 try {
                     autoCloseableResource.use {
@@ -176,7 +170,7 @@ class SlowServerAnswersIT {
                             }.awaitAll()
 
                             logger.info { "Checking metrics..." }
-                            delay(100.milliseconds)
+                            delay(100)
                             eventually(2.seconds) {
                                 val metricName = "${clientName}${expectedMetricSuffix?.let { ".$it" } ?: ""}.http"
                                 val report = reporter.buildReportAndReset { metric, _ ->
