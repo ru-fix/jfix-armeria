@@ -6,16 +6,18 @@ import org.testcontainers.containers.output.Slf4jLogConsumer
 import org.testcontainers.containers.wait.strategy.Wait
 import kotlin.concurrent.thread
 
-private const val PORT = 8080
+private val Network = org.testcontainers.containers.Network.newNetwork()
 
 object JFixTestWebfluxServerContainer : GenericContainer<JFixTestWebfluxServerContainer>(
     "jfix-test-webflux-server:latest"
 ) {
+    const val EXPOSED_PORT = 8080
 
     private val logger = KotlinLogging.logger { }
 
     init {
-        withExposedPorts(PORT)
+        withExposedPorts(EXPOSED_PORT)
+            .withNetwork(Network)
             .withLogConsumer(Slf4jLogConsumer(logger))
             .waitingFor(Wait.forHttp("/").forStatusCode(404))
             .start()
@@ -25,11 +27,7 @@ object JFixTestWebfluxServerContainer : GenericContainer<JFixTestWebfluxServerCo
         })
     }
 
-    val endpoint: String
-        get() = String.format("http://%s:%d", host, serverPort)
-
     val serverPort: Int
-        get() = getMappedPort(PORT)
+        get() = getMappedPort(EXPOSED_PORT)
 
-    const val basePath: String = "/jfix/armeria/test-webflux/v1"
 }

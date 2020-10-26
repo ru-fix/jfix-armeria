@@ -1,6 +1,5 @@
 package ru.fix.armeria.facade.it
 
-import com.linecorp.armeria.client.WebClient
 import io.kotest.assertions.timing.eventually
 import io.kotest.matchers.longs.shouldBeInRange
 import io.kotest.matchers.maps.shouldContainAll
@@ -8,7 +7,6 @@ import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
 import kotlinx.coroutines.*
-import kotlinx.coroutines.future.await
 import kotlinx.coroutines.time.withTimeout
 import org.apache.logging.log4j.kotlin.Logging
 import org.junit.jupiter.api.DynamicTest
@@ -18,11 +16,6 @@ import org.junit.jupiter.api.parallel.Execution
 import org.junit.jupiter.api.parallel.ExecutionMode
 import retrofit2.converter.scalars.ScalarsConverterFactory
 import retrofit2.create
-import retrofit2.http.GET
-import retrofit2.http.Query
-import ru.fix.aggregating.profiler.AggregatingProfiler
-import ru.fix.aggregating.profiler.Profiler
-import ru.fix.aggregating.profiler.ProfilerReporter
 import ru.fix.armeria.commons.testing.IntegrationTest
 import ru.fix.armeria.commons.testing.j
 import ru.fix.armeria.facade.HttpClients
@@ -35,20 +28,21 @@ import kotlin.time.seconds
 
 @ExperimentalTime
 @IntegrationTest
-@Execution(ExecutionMode.SAME_THREAD)
+@Execution(ExecutionMode.CONCURRENT)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class SlowServerAnswersIT {
 
     @TestFactory
     fun `WHEN there are many slow responses THEN fast responses still arrive fastly`() = DynamicTest.stream(
         listOf(
-            ManySlowAndFastResponsesTestCase(
+            JFixArmeriaClientPerformanceTestCaseCreator(
                 testCaseName = "raw Armeria's WebClient based http client",
                 clientName = "it-slow-and-fast-responses-webclient",
                 testClientCreator = { (clientName, profiler) ->
                     val closeableWebClient = HttpClients.builder()
                         .setClientName(clientName)
                         .setEndpoint(mockServerContainer.host, mockServerContainer.serverPort)
+                        .setIoThreadsCount(1)
                         .enableConnectionsProfiling(profiler)
                         .withoutRetries()
                         .setResponseTimeout(15.seconds.j)
@@ -57,7 +51,7 @@ class SlowServerAnswersIT {
                     closeableWebClient to TestApiWebClientBasedImpl(closeableWebClient)
                 }
             ),
-            ManySlowAndFastResponsesTestCase(
+            JFixArmeriaClientPerformanceTestCaseCreator(
                 testCaseName = "raw Armeria's WebClient based http client with retries",
                 clientName = "it-slow-and-fast-responses-webclient-retrying",
                 expectedMetricSuffix = Metrics.EACH_RETRY_ATTEMPT_PREFIX,
@@ -65,6 +59,7 @@ class SlowServerAnswersIT {
                     val closeableWebClient = HttpClients.builder()
                         .setClientName(clientName)
                         .setEndpoint(mockServerContainer.host, mockServerContainer.serverPort)
+                        .setIoThreadsCount(1)
                         .enableConnectionsProfiling(profiler)
                         .withRetriesOn503AndUnprocessedError(3)
                         .withCustomResponseTimeouts()
@@ -77,13 +72,14 @@ class SlowServerAnswersIT {
                     closeableWebClient to TestApiWebClientBasedImpl(closeableWebClient)
                 }
             ),
-            ManySlowAndFastResponsesTestCase(
+            JFixArmeriaClientPerformanceTestCaseCreator(
                 testCaseName = "Artmeria Retrofit integration based client",
                 clientName = "it-slow-and-fast-responses-retrofit",
                 testClientCreator = { (clientName, profiler) ->
                     val closeableRetrofit = HttpClients.builder()
                         .setClientName(clientName)
                         .setEndpoint(mockServerContainer.host, mockServerContainer.serverPort)
+                        .setIoThreadsCount(1)
                         .enableConnectionsProfiling(profiler)
                         .withoutRetries()
                         .setResponseTimeout(15.seconds.j)
@@ -99,7 +95,7 @@ class SlowServerAnswersIT {
                     closeableRetrofit to closeableRetrofit.retrofit.create()
                 }
             ),
-            ManySlowAndFastResponsesTestCase(
+            JFixArmeriaClientPerformanceTestCaseCreator(
                 testCaseName = "Artmeria Retrofit integration based client with retries",
                 clientName = "it-slow-and-fast-responses-retrofit-retrying",
                 expectedMetricSuffix = Metrics.EACH_RETRY_ATTEMPT_PREFIX,
@@ -107,6 +103,7 @@ class SlowServerAnswersIT {
                     val closeableRetrofit = HttpClients.builder()
                         .setClientName(clientName)
                         .setEndpoint(mockServerContainer.host, mockServerContainer.serverPort)
+                        .setIoThreadsCount(1)
                         .enableConnectionsProfiling(profiler)
                         .withRetriesOn503AndUnprocessedError(3)
                         .withCustomResponseTimeouts()
@@ -127,14 +124,11 @@ class SlowServerAnswersIT {
                 }
             )
         ).iterator(),
-        ManySlowAndFastResponsesTestCase::testCaseName
-    ) { testCase: ManySlowAndFastResponsesTestCase ->
+        JFixArmeriaClientPerformanceTestCaseCreator::testCaseName
+    ) { testCaseCreator: JFixArmeriaClientPerformanceTestCaseCreator ->
         runBlocking {
             withTimeout(30.seconds.j) {
-                val (clientName, expectedMetricSuffix, reporter, testApi, autoCloseableResource) = testCase()
-                val mockServer = mockServerContainer
-                val mockServerHost = mockServer.host
-                val mockServerPort = mockServer.serverPort
+                val (clientName, expectedMetricSuffix, reporter, testApi, autoCloseableResource) = testCaseCreator()
 
                 try {
                     autoCloseableResource.use {
@@ -183,11 +177,11 @@ class SlowServerAnswersIT {
                                     it.shouldNotBeNull()
 
                                     it.identity.tags shouldContainAll mapOf(
-                                        "remote_host" to mockServerHost,
-                                        "remote_port" to mockServerPort.toString()
+                                        "remote_host" to mockServerContainer.host,
+                                        "remote_port" to mockServerContainer.serverPort.toString()
                                     )
                                     it.stopSum shouldBe fastRequestsCount
-                                    it.latencyAvg shouldBeInRange (fastRequestDelayMs * 0.5).toLong()..
+                                    it.latencyMax shouldBeInRange (fastRequestDelayMs * 0.9).toLong()..
                                             (fastRequestDelayMs * 2)
                                 }
                             }
@@ -206,57 +200,6 @@ class SlowServerAnswersIT {
 
         val mockServerContainer = JFixTestWebfluxServerContainer
 
-        interface TestApi {
-
-            companion object {
-                const val DELAYED_ANSWER_PATH = "${JFixTestWebfluxServerContainer.basePath}/delayedAnswer"
-            }
-
-            @GET(DELAYED_ANSWER_PATH)
-            suspend fun delayedAnswer(
-                @Query("delayMs") delayMs: Long,
-                @Query("jitter") jitter: Long? = null
-            ): String
-        }
-
-        class TestApiWebClientBasedImpl(private val webClient: WebClient) : TestApi {
-
-            override suspend fun delayedAnswer(delayMs: Long, jitter: Long?): String {
-                val response = webClient.get(
-                    "${TestApi.DELAYED_ANSWER_PATH}?delayMs=${delayMs}${jitter?.let { "&jitter=${it}" } ?: ""}"
-                ).aggregate().await()
-                return response.contentUtf8()
-            }
-
-        }
-
-        data class ManySlowAndFastResponsesTestCase(
-            val testCaseName: String,
-            private val clientName: String,
-            private val expectedMetricSuffix: String? = null,
-            private val testClientCreator: (CreatorInput) -> Pair<AutoCloseable, TestApi>
-        ) : () -> ManySlowAndFastResponsesTestCase.Data {
-
-            data class CreatorInput(
-                val clientName: String,
-                val profiler: Profiler
-            )
-
-            data class Data(
-                val clientName: String,
-                val expectedMetricSuffix: String?,
-                val reporter: ProfilerReporter,
-                val testApi: TestApi,
-                val autoCloseableResource: AutoCloseable
-            )
-
-            override fun invoke(): Data {
-                val profiler = AggregatingProfiler()
-                val reporter = profiler.createReporter()
-                val (autoCloseable, testApi) = testClientCreator(CreatorInput(clientName, profiler))
-                return Data(clientName, expectedMetricSuffix, reporter, testApi, autoCloseable)
-            }
-        }
-
     }
+
 }
