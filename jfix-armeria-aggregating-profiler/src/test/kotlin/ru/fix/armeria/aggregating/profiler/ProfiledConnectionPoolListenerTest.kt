@@ -116,7 +116,7 @@ internal class ProfiledConnectionPoolListenerTest {
 
                     it.latencyMax.shouldBeBetween(
                         (connectionTtlMs * 0.75).toLong(),
-                        connectionTtlMs * 2
+                        (connectionTtlMs * 2.1).toLong()
                     )
                 }
             }
