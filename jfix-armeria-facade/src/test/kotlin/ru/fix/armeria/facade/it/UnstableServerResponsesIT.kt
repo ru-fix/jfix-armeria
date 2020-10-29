@@ -92,7 +92,7 @@ class UnstableServerResponsesIT {
                 try {
                     autoCloseableResource.use {
 
-                        val requestsCount = 10_000
+                        val requestsCount = 1_000
                         val bandwidthInKbPerSec = 10
                         val expectedDelay = (ONE_MB_IN_BYTES / (bandwidthInKbPerSec * ONE_KB_IN_BYTES)).seconds
                         val expectedDelayMs = expectedDelay.toLongMilliseconds()
@@ -217,7 +217,7 @@ class UnstableServerResponsesIT {
                         logger.info { "Submitting $slowRequestsCount slow requests with delay $slowRequestDelay..." }
                         val slowDeferredResults = (1..slowRequestsCount).map {
                             async {
-                                testApi.delayedAnswer(slowRequestDelayMs, 50)
+                                testApi.delayedAnswer(slowRequestDelayMs, 1000)
                             }
                         }
 
