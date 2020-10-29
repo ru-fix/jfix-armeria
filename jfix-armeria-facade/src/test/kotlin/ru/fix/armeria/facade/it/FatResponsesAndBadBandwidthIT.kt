@@ -30,27 +30,10 @@ import kotlin.time.seconds
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class FatResponsesAndBadBandwidthIT {
 
-    @TestFactory
+    /*@TestFactory
     fun `WHEN there are big responses and bad bandwidth THEN they still arrive at expected time according to their size and bandwidth value`() =
         DynamicTest.stream(
             listOf(
-                JFixArmeriaClientPerformanceTestCaseCreator(
-                    testCaseName = "raw Armeria's WebClient based http client",
-                    clientName = "it-fat-low-bandwidth-responses-webclient",
-                    testClientCreator = { (clientName, profiler) ->
-                        val closeableWebClient = HttpClients.builder()
-                            .setClientName(clientName)
-                            .setEndpoint(mockServerContainer.host, mockServerContainer.serverPort)
-                            .setIoThreadsCount(1)
-                            .enableConnectionsProfiling(profiler)
-                            .withoutRetries()
-                            .setResponseTimeout(2.minutes.j)
-                            .enableRequestsProfiling(profiler)
-                            .buildArmeriaWebClient()
-                        closeableWebClient to TestApiWebClientBasedImpl(closeableWebClient)
-                    }
-                )
-                ,
                 JFixArmeriaClientPerformanceTestCaseCreator(
                     testCaseName = "raw Armeria's WebClient based http client with retries",
                     clientName = "it-fat-low-bandwidth-responses-webclient-retrying",
@@ -58,7 +41,8 @@ class FatResponsesAndBadBandwidthIT {
                     testClientCreator = { (clientName, profiler) ->
                         val closeableWebClient = HttpClients.builder()
                             .setClientName(clientName)
-                            .setEndpoint(mockServerContainer.host, mockServerContainer.serverPort)
+                            //.setEndpoint(mockServerContainer.host, mockServerContainer.serverPort)
+                            .setEndpoint("localhost", 8080)
                             .setIoThreadsCount(1)
                             .enableConnectionsProfiling(profiler)
                             .withRetriesOn503AndUnprocessedError(3)
@@ -72,12 +56,12 @@ class FatResponsesAndBadBandwidthIT {
                         closeableWebClient to TestApiWebClientBasedImpl(closeableWebClient)
                     }
                 )
-                /**
+                *//**
                  * WHY IT IS DISABLED? due to presence of blocking response reading executor,
                  * concurrency of fat response reading is proportional to size of blocking executor thread
-                  */
+                  *//*
                 //,
-                /*JFixArmeriaClientPerformanceTestCaseCreator(
+                *//*JFixArmeriaClientPerformanceTestCaseCreator(
                     testCaseName = "Artmeria Retrofit integration based client",
                     clientName = "it-fat-low-bandwidth-responses-retrofit",
                     testClientCreator = { (clientName, profiler) ->
@@ -98,7 +82,7 @@ class FatResponsesAndBadBandwidthIT {
                             .buildRetrofit()
                         closeableRetrofit to closeableRetrofit.retrofit.create()
                     }
-                )*/
+                )*//*
             ).iterator(),
             JFixArmeriaClientPerformanceTestCaseCreator::testCaseName
         ) { testCaseCreator ->
@@ -152,7 +136,7 @@ class FatResponsesAndBadBandwidthIT {
                     logger.info { "Final report: ${reporter.buildReportAndReset()}" }
                 }
             }
-        }
+        }*/
 
     companion object : Logging {
 

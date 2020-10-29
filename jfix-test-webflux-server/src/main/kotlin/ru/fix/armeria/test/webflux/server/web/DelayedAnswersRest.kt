@@ -1,12 +1,13 @@
 package ru.fix.armeria.test.webflux.server.web
 
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.withContext
 import org.apache.logging.log4j.kotlin.Logging
 import org.springframework.http.MediaType
-import org.springframework.util.MimeType
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
@@ -21,12 +22,12 @@ class DelayedAnswersRest {
     suspend fun delayedAnswer(
         @RequestParam delayMs: Long,
         @RequestParam jitter: Long?
-    ): String {
+    ): String = withContext(Dispatchers.Default) {
         val finalDelayMs = jitter?.let {
             delayMs + ThreadLocalRandom.current().nextLong(-jitter, jitter)
         } ?: delayMs
         delay(finalDelayMs)
-        return "Response delayed for $finalDelayMs ms"
+        "Response delayed for $finalDelayMs ms"
     }
 
     @GetMapping("/delayedParts", produces = [MediaType.APPLICATION_OCTET_STREAM_VALUE])
@@ -52,7 +53,7 @@ class DelayedAnswersRest {
                     emit(part)
                 }
             }
-        }
+        }.flowOn(Dispatchers.Default)
     }
 
 
