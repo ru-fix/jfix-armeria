@@ -59,7 +59,7 @@ internal class ProfiledConnectionPoolListenerTest {
         val profiler = AggregatingProfiler()
         val profilerReporter = profiler.createReporter()
         try {
-            val connectionTtlMs: Long = 300
+            val connectionTtlMs: Long = 1.seconds.toLongMilliseconds()
             val client = WebClient
                 .builder(mockServer.uri(sessionProtocol))
                 .factory(
@@ -72,12 +72,18 @@ internal class ProfiledConnectionPoolListenerTest {
                 ).build()
             mockServer.enqueue { HttpResponse.of(HttpStatus.OK) }
 
-            val reportBeforeClientCall = profilerReporter.buildReportAndReset()
+            val reportBeforeClientCall = profilerReporter.buildReportAndReset { metric, _ ->
+                metric.name.endsWith(Metrics.ACTIVE_CHANNELS_COUNT)
+            }
             client.get("/").aggregate().await()
 
             assertSoftly {
                 reportBeforeClientCall.indicatorWithNameEnding(Metrics.ACTIVE_CHANNELS_COUNT) shouldBe 0
-                profilerReporter.buildReportAndReset().profiledCallReportWithNameEnding(Metrics.CONNECTION_LIFETIME)
+                val report = profilerReporter.buildReportAndReset { metric, _ ->
+                    metric.name.endsWith(Metrics.CONNECTION_LIFETIME)
+                }
+                logger.trace { "$sessionProtocol Report: $report" }
+                report.profiledCallReportWithNameEnding(Metrics.CONNECTION_LIFETIME)
                     .should {
                         it.shouldNotBeNull()
                         it.identity.tags shouldContainExactly mapOf(
@@ -91,7 +97,11 @@ internal class ProfiledConnectionPoolListenerTest {
                     }
             }
             eventually((connectionTtlMs / 2).milliseconds) {
-                profilerReporter.buildReportAndReset().indicatorWithNameEnding(Metrics.ACTIVE_CHANNELS_COUNT) shouldBe 1
+                val report = profilerReporter.buildReportAndReset { metric, _ ->
+                    metric.name.endsWith(Metrics.ACTIVE_CHANNELS_COUNT)
+                }
+                logger.trace { "$sessionProtocol Report: $report" }
+                report.indicatorWithNameEnding(Metrics.ACTIVE_CHANNELS_COUNT) shouldBe 1
             }
             /**
              * connection destroyed and:
@@ -99,29 +109,28 @@ internal class ProfiledConnectionPoolListenerTest {
              * - connection lifetime metric is profiled
              */
             eventually(2.seconds) {
-
                 val report = profilerReporter.buildReportAndReset { metric, _ ->
                     metric.name.endsWith(Metrics.ACTIVE_CHANNELS_COUNT)
                 }
-                logger.trace { "Report: $report" }
+                logger.trace { "$sessionProtocol Report: $report" }
                 report.indicatorWithNameEnding(Metrics.ACTIVE_CHANNELS_COUNT) shouldBe 0
             }
             eventually(1.seconds) {
                 val report = profilerReporter.buildReportAndReset { metric, _ ->
                     metric.name.endsWith(Metrics.CONNECTION_LIFETIME)
                 }
-                logger.trace { "Report: $report" }
+                logger.trace { "$sessionProtocol Report: $report" }
                 report.profiledCallReportWithNameEnding(Metrics.CONNECTION_LIFETIME).should {
                     it.shouldNotBeNull()
 
                     it.latencyMax.shouldBeBetween(
                         (connectionTtlMs * 0.75).toLong(),
-                        (connectionTtlMs * 2.1).toLong()
+                        connectionTtlMs * 3
                     )
                 }
             }
         } finally {
-            logger.trace { "Final report: ${profilerReporter.buildReportAndReset()}" }
+            logger.trace { "$sessionProtocol Final report: ${profilerReporter.buildReportAndReset()}" }
         }
     }
 
