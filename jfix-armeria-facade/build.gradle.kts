@@ -73,7 +73,6 @@ dependencies {
     testImplementation(Libs.retrofit2_converter_scalars)
     //  TestContainers
     testImplementation(Libs.testcontainers)
-    testImplementation(Libs.testcontainers_toxiproxy)
     //  Other useful libs
     testImplementation(Libs.jfix_stdlib_socket)
 }

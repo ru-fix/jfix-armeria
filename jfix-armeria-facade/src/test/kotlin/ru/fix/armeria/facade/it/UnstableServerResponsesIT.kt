@@ -13,6 +13,9 @@ import org.junit.jupiter.api.parallel.Execution
 import org.junit.jupiter.api.parallel.ExecutionMode
 import retrofit2.converter.scalars.ScalarsConverterFactory
 import retrofit2.create
+import ru.fix.aggregating.profiler.AggregatingProfiler
+import ru.fix.aggregating.profiler.Profiler
+import ru.fix.aggregating.profiler.ProfilerReporter
 import ru.fix.armeria.commons.testing.IntegrationTest
 import ru.fix.armeria.commons.testing.j
 import ru.fix.armeria.facade.HttpClients
@@ -36,7 +39,7 @@ class UnstableServerResponsesIT {
     fun `WHEN there are big responses and bad bandwidth THEN they still arrive at expected time according to their size and bandwidth value`() =
         DynamicTest.stream(
             listOf(
-                JFixArmeriaClientPerformanceTestCaseCreator(
+                UnstableServerTestCaseCreator(
                     testCaseName = "raw Armeria's WebClient based http client with retries",
                     clientName = "it-fat-low-bandwidth-responses-webclient-retrying",
                     expectedMetricSuffix = Metrics.EACH_RETRY_ATTEMPT_PREFIX,
@@ -85,7 +88,7 @@ class UnstableServerResponsesIT {
                     }
                 )*/
             ).iterator(),
-            JFixArmeriaClientPerformanceTestCaseCreator::testCaseName
+            UnstableServerTestCaseCreator::testCaseName
         ) { testCaseCreator ->
             runBlocking {
                 val (clientName, expectedMetricSuffix, reporter, testApi, autoCloseableResource) = testCaseCreator()
@@ -143,7 +146,7 @@ class UnstableServerResponsesIT {
     @TestFactory
     fun `WHEN there are many slow responses THEN fast responses still arrive fastly`() = DynamicTest.stream(
         listOf(
-            JFixArmeriaClientPerformanceTestCaseCreator(
+            UnstableServerTestCaseCreator(
                 testCaseName = "raw Armeria's WebClient based http client with retries",
                 clientName = "it-slow-and-fast-responses-webclient-retrying",
                 expectedMetricSuffix = Metrics.EACH_RETRY_ATTEMPT_PREFIX,
@@ -164,7 +167,7 @@ class UnstableServerResponsesIT {
                     closeableWebClient to TestApiWebClientBasedImpl(closeableWebClient)
                 }
             ),
-            JFixArmeriaClientPerformanceTestCaseCreator(
+            UnstableServerTestCaseCreator(
                 testCaseName = "Artmeria Retrofit integration based client with retries",
                 clientName = "it-slow-and-fast-responses-retrofit-retrying",
                 expectedMetricSuffix = Metrics.EACH_RETRY_ATTEMPT_PREFIX,
@@ -193,8 +196,8 @@ class UnstableServerResponsesIT {
                 }
             )
         ).iterator(),
-        JFixArmeriaClientPerformanceTestCaseCreator::testCaseName
-    ) { testCaseCreator: JFixArmeriaClientPerformanceTestCaseCreator ->
+        UnstableServerTestCaseCreator::testCaseName
+    ) { testCaseCreator: UnstableServerTestCaseCreator ->
         runBlocking {
             withTimeout(30.seconds.j) {
                 val (clientName, expectedMetricSuffix, reporter, testApi, autoCloseableResource) = testCaseCreator()
@@ -268,5 +271,32 @@ class UnstableServerResponsesIT {
 
         val mockServerContainer = JFixTestWebfluxServerContainer
 
+        internal data class UnstableServerTestCaseCreator(
+            val testCaseName: String,
+            private val clientName: String,
+            private val expectedMetricSuffix: String? = null,
+            private val testClientCreator: (Input) -> Pair<AutoCloseable, JFixTestWebfluxServerApi>
+        ) : () -> UnstableServerTestCaseCreator.Data {
+
+            data class Input(
+                val clientName: String,
+                val profiler: Profiler
+            )
+
+            data class Data(
+                val clientName: String,
+                val expectedMetricSuffix: String?,
+                val reporter: ProfilerReporter,
+                val testApi: JFixTestWebfluxServerApi,
+                val autoCloseableResource: AutoCloseable
+            )
+
+            override fun invoke(): Data {
+                val profiler = AggregatingProfiler()
+                val reporter = profiler.createReporter()
+                val (autoCloseable, testApi) = testClientCreator(Input(clientName, profiler))
+                return Data(clientName, expectedMetricSuffix, reporter, testApi, autoCloseable)
+            }
+        }
     }
 }

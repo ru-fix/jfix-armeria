@@ -14,7 +14,7 @@ import okio.Buffer
 import retrofit2.http.GET
 import retrofit2.http.Query
 
-interface TestApi {
+interface JFixTestWebfluxServerApi {
 
     companion object {
         private const val BASE_PATH = "/jfix/armeria/test-webflux/v1"
@@ -36,7 +36,7 @@ interface TestApi {
     ): ResponseBody //force Retrofit to wait response but to do not load it into memory
 }
 
-class TestApiWebClientBasedImpl(private val webClient: WebClient) : TestApi {
+class TestApiWebClientBasedImpl(private val webClient: WebClient) : JFixTestWebfluxServerApi {
 
     companion object {
         private val OCTET_STREAM_MEDIA_TYPE = MediaType.get(MediaTypeNames.OCTET_STREAM)
@@ -46,13 +46,13 @@ class TestApiWebClientBasedImpl(private val webClient: WebClient) : TestApi {
 
     override suspend fun delayedAnswer(delayMs: Long, jitter: Long?): String {
         val response = webClient.get(
-            "${TestApi.DELAYED_ANSWER_PATH}?delayMs=${delayMs}${jitter?.let { "&jitter=${it}" } ?: ""}"
+            "${JFixTestWebfluxServerApi.DELAYED_ANSWER_PATH}?delayMs=${delayMs}${jitter?.let { "&jitter=${it}" } ?: ""}"
         ).aggregate().await()
         return response.contentUtf8()
     }
 
     override suspend fun delayedParts(partsCount: Int, partSizeInBytes: Int, delayBetweenPartsMs: Long?): ResponseBody {
-        val path = TestApi.DELAYED_PARTS_PATH +
+        val path = JFixTestWebfluxServerApi.DELAYED_PARTS_PATH +
                 "?partsCount=${partsCount}" +
                 "&partSize=${partSizeInBytes}" +
                 (delayBetweenPartsMs?.let { "&delayBetweenPartsMs=$it" } ?: "")

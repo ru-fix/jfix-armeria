@@ -87,7 +87,6 @@ object Libs {
     const val junit_engine = "org.junit.jupiter:junit-jupiter-engine:${Vers.junit}"
     const val armeria_junit5 = "com.linecorp.armeria:armeria-junit5:${Vers.armeria}"
     //  Kotest
-    const val kotest_engine = "io.kotest:kotest-runner-junit5:${Vers.kotest}"
     const val kotest_assertions_core = "io.kotest:kotest-assertions-core:${Vers.kotest}"
     const val kotest_assertions_json = "io.kotest:kotest-assertions-json:${Vers.kotest}"
     //  Corounit
@@ -95,7 +94,6 @@ object Libs {
     const val mockk = "io.mockk:mockk:${Vers.mockk}"
     //  TestContainers
     const val testcontainers = "org.testcontainers:testcontainers:${Vers.testcontainers}"
-    const val testcontainers_toxiproxy = "org.testcontainers:toxiproxy:${Vers.testcontainers}"
 }
 
 const val ProjectGroup = "ru.fix"
