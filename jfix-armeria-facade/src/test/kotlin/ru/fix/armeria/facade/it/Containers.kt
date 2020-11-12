@@ -11,7 +11,7 @@ private val Network = org.testcontainers.containers.Network.newNetwork()
 object JFixTestWebfluxServerContainer : GenericContainer<JFixTestWebfluxServerContainer>(
     "jfix-test-webflux-server:latest"
 ) {
-    const val EXPOSED_PORT = 8080
+    private const val EXPOSED_PORT = 8080
 
     private val logger = KotlinLogging.logger { }
 

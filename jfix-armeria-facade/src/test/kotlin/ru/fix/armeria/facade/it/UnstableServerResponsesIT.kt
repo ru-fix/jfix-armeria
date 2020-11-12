@@ -66,7 +66,7 @@ class UnstableServerResponsesIT {
                  */
                 //,
                 /*JFixArmeriaClientPerformanceTestCaseCreator(
-                    testCaseName = "Artmeria Retrofit integration based client",
+                    testCaseName = "Armeria Retrofit integration based client",
                     clientName = "it-fat-low-bandwidth-responses-retrofit",
                     testClientCreator = { (clientName, profiler) ->
                         val closeableRetrofit = HttpClients.builder()
@@ -168,7 +168,7 @@ class UnstableServerResponsesIT {
                 }
             ),
             UnstableServerTestCaseCreator(
-                testCaseName = "Artmeria Retrofit integration based client with retries",
+                testCaseName = "Armeria Retrofit integration based client with retries",
                 clientName = "it-slow-and-fast-responses-retrofit-retrying",
                 expectedMetricSuffix = Metrics.EACH_RETRY_ATTEMPT_PREFIX,
                 testClientCreator = { (clientName, profiler) ->

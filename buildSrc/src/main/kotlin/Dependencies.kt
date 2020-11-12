@@ -24,6 +24,7 @@ object Vers {
     // Logging
     const val log4j = "2.12.0"
     const val log4j_kotlin = "1.0.0"
+    const val kotlin_logging = "2.0.3"
 
     // Spring
     const val spring_boot = "2.3.4.RELEASE"
@@ -66,7 +67,7 @@ object Libs {
     const val log4j_kotlin = "org.apache.logging.log4j:log4j-api-kotlin:${Vers.log4j_kotlin}"
     const val log4j_core = "org.apache.logging.log4j:log4j-core:${Vers.log4j}"
     const val slf4j_over_log4j = "org.apache.logging.log4j:log4j-slf4j-impl:${Vers.log4j}"
-    const val kotlin_logging = "io.github.microutils:kotlin-logging:2.0.3"
+    const val kotlin_logging = "io.github.microutils:kotlin-logging:${Vers.kotlin_logging}"
 
     // Armeria
     const val armeria = "com.linecorp.armeria:armeria:${Vers.armeria}"

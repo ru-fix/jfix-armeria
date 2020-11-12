@@ -53,7 +53,7 @@ internal class ProfiledConnectionPoolListenerTest {
         `WHEN connection created and destroyed THEN its lifetime profiled AND connections count updated`(SessionProtocol.H2C)
     }
 
-    suspend fun `WHEN connection created and destroyed THEN its lifetime profiled AND connections count updated`(
+    private suspend fun `WHEN connection created and destroyed THEN its lifetime profiled AND connections count updated`(
         sessionProtocol: SessionProtocol
     ) {
         val profiler = AggregatingProfiler()
