@@ -3,6 +3,7 @@ import JFixArmeriaFacadeFeatures.*
 plugins {
     java
     kotlin("jvm")
+    id(Libs.shadow_plugin)
 }
 java {
     val main by sourceSets

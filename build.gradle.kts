@@ -9,6 +9,8 @@ import java.time.Duration
 import java.time.temporal.ChronoUnit
 import kotlin.properties.ReadOnlyProperty
 import kotlin.reflect.KProperty
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+import com.github.jengelman.gradle.plugins.shadow.ShadowExtension
 
 buildscript {
 
@@ -33,6 +35,7 @@ plugins {
     id(Libs.nexus_publish_plugin_id) version Vers.nexus_publish_plugin apply false
     id(Libs.nexus_staging_plugin_id) version Vers.nexus_staging_plugin
     id(Libs.asciidoctor_plugin_id) version Vers.asciidoctor_plugin
+    id(Libs.shadow_plugin) version Vers.shadow_plugin
 }
 
 /**
@@ -138,6 +141,9 @@ subprojects {
                 }
 
                 create<MavenPublication>("maven") {
+                    configure<ShadowExtension> {
+                        component(this@create)
+                    }
                     from(components["java"])
 
                     artifact(sourcesJar)
@@ -186,6 +192,17 @@ subprojects {
     }
 
     tasks {
+        withType<ShadowJar> {
+            relocate("io.netty", "ru.fix.shaded.armeria.io.netty")
+            isZip64 = true
+            mergeServiceFiles()
+            exclude("META-INF/*.SF")
+            exclude("META-INF/*.DSA")
+            exclude("META-INF/*.RSA")
+            exclude("LICENSE*")
+            classifier = null
+        }
+
         withType<JavaCompile> {
             sourceCompatibility = JavaVersion.VERSION_1_8.toString()
             targetCompatibility = JavaVersion.VERSION_1_8.toString()
@@ -207,6 +224,7 @@ subprojects {
             }
         }
     }
+    tasks.getByPath("build").dependsOn("shadowJar")
 }
 
 tasks {
