@@ -6,6 +6,7 @@ object Vers {
     const val asciidoctor_plugin = "1.5.9.2"
     const val nexus_staging_plugin = "0.21.2"
     const val nexus_publish_plugin = "0.4.0"
+    const val shadow_plugin = "6.1.0"
 
     // Kotlin Dependencies
     const val kotlin = "1.3.72"
@@ -40,6 +41,7 @@ object Libs {
     const val asciidoctor_plugin = "org.asciidoctor:asciidoctor-gradle-plugin:${Vers.asciidoctor_plugin}"
     const val nexus_staging_plugin_id = "io.codearte.nexus-staging"
     const val nexus_publish_plugin_id = "de.marcphilipp.nexus-publish"
+    const val shadow_plugin = "com.github.johnrengelman.shadow"
 
     // Kotlin
     const val kotlin_stdlib = "org.jetbrains.kotlin:kotlin-stdlib:${Vers.kotlin}"

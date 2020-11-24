@@ -1,5 +1,6 @@
 plugins {
     kotlin("jvm")
+    id(Libs.shadow_plugin)
 }
 
 dependencies {
