@@ -4,6 +4,7 @@ plugins {
     java
     kotlin("jvm")
 }
+
 java {
     val main by sourceSets
     for (facadeFeature in JFixArmeriaFacadeFeatures.values()) {
@@ -57,16 +58,21 @@ dependencies {
     testRuntimeOnly(Libs.junit_engine)
     testRuntimeOnly(Libs.corounit_engine)
     //  Kotest
-    testImplementation(Libs.kotest_assertions_core_jvm)
-    testImplementation(Libs.kotest_assertions_json_jvm)
+    testImplementation(Libs.kotest_assertions_core)
+    testImplementation(Libs.kotest_assertions_json)
     //  Test Logging
     testRuntimeOnly(Libs.log4j_core)
     testRuntimeOnly(Libs.slf4j_over_log4j)
+    testImplementation(Libs.kotlin_logging)
     //  Mocking
     testImplementation(Libs.mockk)
     testImplementation(Libs.armeria_junit5)
+    testImplementation(Libs.armeria_kotlin)
     //  Retrofit integration
     testImplementation(Libs.retrofit2_converter_jackson)
+    testImplementation(Libs.retrofit2_converter_scalars)
+    //  TestContainers
+    testImplementation(Libs.testcontainers)
     //  Other useful libs
     testImplementation(Libs.jfix_stdlib_socket)
 }

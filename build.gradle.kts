@@ -33,6 +33,8 @@ plugins {
     id(Libs.nexus_publish_plugin_id) version Vers.nexus_publish_plugin apply false
     id(Libs.nexus_staging_plugin_id) version Vers.nexus_staging_plugin
     id(Libs.asciidoctor_plugin_id) version Vers.asciidoctor_plugin
+    id(Libs.spring_boot_plugin_id) version Vers.spring_boot apply false
+    id(Libs.docker_spring_boot_plugin_id) version Vers.docker_plugin apply false
 }
 
 /**
@@ -121,49 +123,51 @@ subprojects {
     }
 
     project.afterEvaluate {
-        publishing {
+        if (project.name.startsWith("jfix-armeria")) {
+            publishing {
 
-            publications {
-                //Internal repository setup
-                repositories {
-                    maven {
-                        url = uri("$repositoryUrl")
-                        if (url.scheme.startsWith("http", true)) {
-                            credentials {
-                                username = "$repositoryUser"
-                                password = "$repositoryPassword"
+                publications {
+                    //Internal repository setup
+                    repositories {
+                        maven {
+                            url = uri("$repositoryUrl")
+                            if (url.scheme.startsWith("http", true)) {
+                                credentials {
+                                    username = "$repositoryUser"
+                                    password = "$repositoryPassword"
+                                }
                             }
                         }
                     }
-                }
 
-                create<MavenPublication>("maven") {
-                    from(components["java"])
+                    create<MavenPublication>("maven") {
+                        from(components["java"])
 
-                    artifact(sourcesJar)
-                    artifact(dokkaJar)
+                        artifact(sourcesJar)
+                        artifact(dokkaJar)
 
-                    pom {
-                        name.set("${project.group}:${project.name}")
-                        description.set("https://github.com/ru-fix/")
-                        url.set("https://github.com/ru-fix/${rootProject.name}")
-                        licenses {
-                            license {
-                                name.set("The Apache License, Version 2.0")
-                                url.set("http://www.apache.org/licenses/LICENSE-2.0.txt")
-                            }
-                        }
-                        developers {
-                            developer {
-                                id.set("JFix Team")
-                                name.set("JFix Team")
-                                url.set("https://github.com/ru-fix/")
-                            }
-                        }
-                        scm {
+                        pom {
+                            name.set("${project.group}:${project.name}")
+                            description.set("https://github.com/ru-fix/")
                             url.set("https://github.com/ru-fix/${rootProject.name}")
-                            connection.set("https://github.com/ru-fix/${rootProject.name}.git")
-                            developerConnection.set("https://github.com/ru-fix/${rootProject.name}.git")
+                            licenses {
+                                license {
+                                    name.set("The Apache License, Version 2.0")
+                                    url.set("http://www.apache.org/licenses/LICENSE-2.0.txt")
+                                }
+                            }
+                            developers {
+                                developer {
+                                    id.set("JFix Team")
+                                    name.set("JFix Team")
+                                    url.set("https://github.com/ru-fix/")
+                                }
+                            }
+                            scm {
+                                url.set("https://github.com/ru-fix/${rootProject.name}")
+                                connection.set("https://github.com/ru-fix/${rootProject.name}.git")
+                                developerConnection.set("https://github.com/ru-fix/${rootProject.name}.git")
+                            }
                         }
                     }
                 }
@@ -195,8 +199,10 @@ subprojects {
                 jvmTarget = JavaVersion.VERSION_1_8.toString()
             }
         }
-        withType<Test> {
-            useJUnitPlatform()
+        "test"(Test::class) {
+            useJUnitPlatform {
+                excludeTags("integration")
+            }
 
             maxParallelForks = 10
 
@@ -205,6 +211,20 @@ subprojects {
                 showStandardStreams = true
                 exceptionFormat = TestExceptionFormat.FULL
             }
+        }
+        create<Test>("integrationTest") {
+            description = "Runs integration tests."
+            group = "verification"
+
+            useJUnitPlatform {
+                includeTags("integration")
+            }
+            testLogging {
+                events(TestLogEvent.STARTED, TestLogEvent.PASSED, TestLogEvent.FAILED, TestLogEvent.SKIPPED)
+                showStandardStreams = true
+                exceptionFormat = TestExceptionFormat.FULL
+            }
+            shouldRunAfter("test")
         }
     }
 }

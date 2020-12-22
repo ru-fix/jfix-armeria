@@ -14,3 +14,4 @@ val projects = listOf(
 for (project in projects) {
     include(project)
 }
+include("jfix-test-webflux-server")
