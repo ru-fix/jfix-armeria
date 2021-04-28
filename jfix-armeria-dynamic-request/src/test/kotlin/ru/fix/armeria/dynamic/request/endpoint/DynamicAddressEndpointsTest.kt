@@ -14,11 +14,13 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.future.asDeferred
 import kotlinx.coroutines.joinAll
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.TestInstance
 import ru.fix.armeria.commons.testing.ArmeriaMockServer
 import ru.fix.dynamic.property.api.AtomicProperty
 import java.net.URI
 import java.util.concurrent.atomic.AtomicInteger
 
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 internal class DynamicAddressEndpointsTest {
 
     @Test

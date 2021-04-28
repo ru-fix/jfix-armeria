@@ -8,7 +8,6 @@ import com.linecorp.armeria.common.HttpResponse
 import com.linecorp.armeria.common.HttpStatus
 import com.linecorp.armeria.common.ResponseHeaders
 import io.kotest.assertions.timing.eventually
-import io.kotest.matchers.doubles.shouldBeBetween
 import io.kotest.matchers.longs.shouldBeBetween
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.should
@@ -20,6 +19,7 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.future.asDeferred
 import org.apache.logging.log4j.kotlin.Logging
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.TestInstance
 import retrofit2.create
 import retrofit2.http.GET
 import ru.fix.aggregating.profiler.AggregatingProfiler
@@ -49,6 +49,7 @@ private typealias ClientWithProfiledCallCreator<ClientT>
 private typealias ClientToServerLoadEmulator<ClientT> = suspend (Int, ClientT) -> Unit
 
 @ExperimentalTime
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 internal class RateLimitingClientTest {
 
     @Test
