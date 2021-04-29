@@ -45,10 +45,12 @@ internal object MetricTags {
             ?.let { this += (PATH to it) }
         method
             ?.let { this += (METHOD to it.name) }
-        remoteInetSocketAddress?.let {
-            this += (REMOTE_ADDRESS to it.address.hostAddress)
-            this += (REMOTE_HOST to it.hostName)
-            this += (REMOTE_PORT to it.port.toString())
+        remoteInetSocketAddress?.let { inetSocketAddress ->
+            inetSocketAddress.address?.let { inetAddress ->
+                this += (REMOTE_ADDRESS to inetAddress.hostAddress)
+            }
+            this += (REMOTE_HOST to inetSocketAddress.hostName)
+            this += (REMOTE_PORT to inetSocketAddress.port.toString())
         }
         responseStatusCode
             ?.let { this += (RESPONSE_STATUS to it.codeAsText()) }

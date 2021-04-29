@@ -15,10 +15,10 @@ object Vers {
     // JFix components
     const val aggregating_profiler = "1.6.6"
     const val dynamic_property = "2.0.8"
-    const val jfix_stdlib = "3.0.12"
+    const val jfix_stdlib = "3.0.15"
 
     // Armeria and Retrofit
-    const val armeria = "1.2.0"
+    const val armeria = "1.6.0"
     const val retrofit = "2.9.0"
 
     // Logging
@@ -27,13 +27,13 @@ object Vers {
     const val kotlin_logging = "2.0.3"
 
     // Spring
-    const val spring_boot = "2.3.4.RELEASE"
+    const val spring_boot = "2.4.5"
 
     // Testing
-    const val junit = "5.7.0"
+    const val junit = "5.7.1"
     const val kotest = "4.3.0"
     const val mockk = "1.10.2"
-    const val corounit = "1.0.32"
+    const val corounit = "1.0.34"
     const val testcontainers = "1.14.3"
 }
 

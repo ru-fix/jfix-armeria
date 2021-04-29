@@ -25,6 +25,7 @@ import org.apache.logging.log4j.kotlin.Logging
 import org.junit.jupiter.api.DynamicTest
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestFactory
+import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.api.extension.ExtensionContext
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
@@ -46,6 +47,7 @@ import kotlin.time.ExperimentalTime
 import kotlin.time.seconds
 
 @ExperimentalTime
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 internal class ProfiledHttpClientTest {
 
     @ParameterizedTest
