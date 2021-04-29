@@ -86,7 +86,7 @@ subprojects {
         mavenLocal()
         if (!repositoryUrl.isNullOrEmpty()) {
             maven(url = repositoryUrl.toString()) {
-                this.isAllowInsecureProtocol = true
+                isAllowInsecureProtocol = true
             }
         }
     }
@@ -133,6 +133,7 @@ subprojects {
                     repositories {
                         maven {
                             url = uri("$repositoryUrl")
+                            isAllowInsecureProtocol = true
                             if (url.scheme.startsWith("http", true)) {
                                 credentials {
                                     username = "$repositoryUser"
