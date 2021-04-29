@@ -85,7 +85,9 @@ subprojects {
         mavenCentral()
         mavenLocal()
         if (!repositoryUrl.isNullOrEmpty()) {
-            maven(url = repositoryUrl.toString())
+            maven(url = repositoryUrl.toString()) {
+                this.isAllowInsecureProtocol = true
+            }
         }
     }
 
