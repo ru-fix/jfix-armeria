@@ -347,6 +347,34 @@ internal class ProfiledHttpClientTest {
     }
 
     @Test
+    suspend fun `non-200 http status is valid`() {
+        val profiler = AggregatingProfiler()
+        val profilerReporter = profiler.createReporter()
+        val mockServer = ArmeriaMockServer {
+            service(ErrorProfilingTest.TEST_PATH) { _, _ ->
+                HttpResponse.of(HttpStatus.FOUND)
+            }
+        }
+        mockServer.start()
+        val client = WebClient
+            .builder(mockServer.httpUri())
+            .decorator(ProfiledHttpClient.newDecorator(profiler) { it == HttpStatus.FOUND })
+            .build()
+        try {
+            client.get(ErrorProfilingTest.TEST_PATH).aggregate().await()
+        } catch (e: Exception) {
+            logger.error(e)
+        }
+        eventually(1.seconds) {
+            assertSoftly(profilerReporter.buildReportAndReset()) {
+                profiledCallReportWithNameEnding(Metrics.HTTP_CONNECT) shouldNotBe null
+                profiledCallReportWithNameEnding(Metrics.HTTP_CONNECTED) shouldNotBe null
+                profiledCallReportWithNameEnding(Metrics.HTTP_ERROR) shouldBe null
+            }
+        }
+    }
+
+    @Test
     suspend fun `http (and not only) error WHEN endpoint group is empty THEN error profiled`() {
         val testPath = "/test-no-endpoint-group-error"
         val profiler = AggregatingProfiler()
