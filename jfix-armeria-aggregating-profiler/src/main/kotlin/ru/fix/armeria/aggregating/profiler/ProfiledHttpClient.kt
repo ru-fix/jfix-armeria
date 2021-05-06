@@ -175,8 +175,7 @@ class ProfiledHttpClient private constructor(
         @JvmStatic
         fun newDecorator(
             profiler: Profiler,
-            isResponseStatusValid: (HttpStatus) -> Boolean =
-                { it.codeClass() == HttpStatusClass.SUCCESS || it == HttpStatus.UNKNOWN }
+            isResponseStatusValid: (HttpStatus) -> Boolean = { it.codeClass() == HttpStatusClass.SUCCESS }
         ): Function<HttpClient, HttpClient> =
             Function {
                 ProfiledHttpClient(it, profiler, isResponseStatusValid)

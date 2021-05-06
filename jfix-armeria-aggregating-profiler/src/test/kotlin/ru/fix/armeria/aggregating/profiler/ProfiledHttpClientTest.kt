@@ -350,8 +350,9 @@ internal class ProfiledHttpClientTest {
     suspend fun `non-200 http status is valid`() {
         val profiler = AggregatingProfiler()
         val profilerReporter = profiler.createReporter()
+        val path = "/non200success"
         val mockServer = ArmeriaMockServer {
-            service(ErrorProfilingTest.TEST_PATH) { _, _ ->
+            service(path) { _, _ ->
                 HttpResponse.of(HttpStatus.FOUND)
             }
         }
@@ -361,16 +362,53 @@ internal class ProfiledHttpClientTest {
             .decorator(ProfiledHttpClient.newDecorator(profiler) { it == HttpStatus.FOUND })
             .build()
         try {
-            client.get(ErrorProfilingTest.TEST_PATH).aggregate().await()
+            client.get(path).aggregate().await()
         } catch (e: Exception) {
             logger.error(e)
         }
+
         eventually(1.seconds) {
-            assertSoftly(profilerReporter.buildReportAndReset()) {
-                profiledCallReportWithNameEnding(Metrics.HTTP_CONNECT) shouldNotBe null
-                profiledCallReportWithNameEnding(Metrics.HTTP_CONNECTED) shouldNotBe null
-                profiledCallReportWithNameEnding(Metrics.HTTP_ERROR) shouldBe null
+            val report = profilerReporter.buildReportAndReset { metric, _ ->
+                metric.name == Metrics.HTTP_CONNECT
             }
+            report.profiledCallReportWithNameEnding(Metrics.HTTP_CONNECT) should {
+                it.shouldNotBeNull()
+                it.stopSum shouldBe 1
+                it.identity.tags shouldContainExactly mapOf(
+                    MetricTags.PATH to path,
+                    MetricTags.METHOD to "GET",
+                    MetricTags.PROTOCOL to "http",
+                    MetricTags.IS_MULTIPLEX_PROTOCOL to false.toString(),
+                    MetricTags.REMOTE_ADDRESS to LocalHost.IP.value,
+                    MetricTags.REMOTE_HOST to LocalHost.HOSTNAME.value,
+                    MetricTags.REMOTE_PORT to mockServer.httpPort().toString()
+                )
+            }
+        }
+        eventually(1.seconds) {
+            val report = profilerReporter.buildReportAndReset { metric, _ ->
+                metric.name == Metrics.HTTP_CONNECTED
+            }
+            report.profiledCallReportWithNameEnding(Metrics.HTTP_CONNECTED) should {
+                it.shouldNotBeNull()
+                it.stopSum shouldBe 1
+                it.identity.tags shouldContainExactly mapOf(
+                    MetricTags.PATH to path,
+                    MetricTags.METHOD to "GET",
+                    MetricTags.PROTOCOL to "h2c",
+                    MetricTags.IS_MULTIPLEX_PROTOCOL to true.toString(),
+                    MetricTags.CHANNEL_CLASS to EPOLL_SOCKET_CHANNEL,
+                    MetricTags.REMOTE_ADDRESS to LocalHost.IP.value,
+                    MetricTags.REMOTE_HOST to LocalHost.HOSTNAME.value,
+                    MetricTags.REMOTE_PORT to mockServer.httpPort().toString()
+                )
+            }
+        }
+        eventually(1.seconds) {
+            val report = profilerReporter.buildReportAndReset { metric, _ ->
+                metric.name == Metrics.HTTP_ERROR
+            }
+            report.profiledCallReportWithNameEnding(Metrics.HTTP_ERROR) shouldBe null
         }
     }
 

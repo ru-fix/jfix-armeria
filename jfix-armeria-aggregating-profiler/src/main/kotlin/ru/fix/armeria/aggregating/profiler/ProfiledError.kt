@@ -67,7 +67,7 @@ internal fun RequestLog.detectProfiledErrorIfAny(isResponseStatusValid: (HttpSta
     val responseCause = responseCause()
     val status = responseHeaders().status()
     return when {
-        !isResponseStatusValid(status) -> ProfiledError.InvalidStatus
+        !isResponseStatusValid(status) && status != HttpStatus.UNKNOWN -> ProfiledError.InvalidStatus
         requestCause != null -> requestCause.unwrapUnprocessedExceptionIfNecessary().let {
             when (it) {
                 is ConnectException -> ProfiledError.ConnectRefused
