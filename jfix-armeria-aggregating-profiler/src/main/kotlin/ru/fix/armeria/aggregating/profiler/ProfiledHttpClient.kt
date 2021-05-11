@@ -18,6 +18,10 @@ import ru.fix.armeria.commons.sessionProtocol
 import java.net.InetSocketAddress
 import java.util.function.Function
 
+/**
+ * @param isResponseStatusValid  It is guaranteed that input [HttpStatus] is not [HttpStatus.UNKNOWN]
+ * so that if this checking function is called then http response is received
+ */
 class ProfiledHttpClient private constructor(
     delegate: HttpClient,
     private val profiler: Profiler,
@@ -172,6 +176,10 @@ class ProfiledHttpClient private constructor(
 
         private data class ConnectProfiledCall(val profiledCall: ProfiledCall, val connectStartTimestamp: Long)
 
+        /**
+         * @param isResponseStatusValid  It is guaranteed that input [HttpStatus] is not [HttpStatus.UNKNOWN]
+         * so that if this checking function is called then http response is received
+         */
         @JvmStatic
         fun newDecorator(
             profiler: Profiler,

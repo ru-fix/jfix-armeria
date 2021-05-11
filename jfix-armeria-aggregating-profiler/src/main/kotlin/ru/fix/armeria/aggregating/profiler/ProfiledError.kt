@@ -62,12 +62,16 @@ internal sealed class ProfiledError(
     }
 }
 
+/**
+ * @param isResponseStatusValid  It is guaranteed that input [HttpStatus] is not [HttpStatus.UNKNOWN]
+ * so that if this checking function is called then http response is received
+ */
 internal fun RequestLog.detectProfiledErrorIfAny(isResponseStatusValid: (HttpStatus) -> Boolean): ProfiledError? {
     val requestCause = requestCause()
     val responseCause = responseCause()
     val status = responseHeaders().status()
     return when {
-        !isResponseStatusValid(status) && status != HttpStatus.UNKNOWN -> ProfiledError.InvalidStatus
+        status != HttpStatus.UNKNOWN && !isResponseStatusValid(status) -> ProfiledError.InvalidStatus
         requestCause != null -> requestCause.unwrapUnprocessedExceptionIfNecessary().let {
             when (it) {
                 is ConnectException -> ProfiledError.ConnectRefused
