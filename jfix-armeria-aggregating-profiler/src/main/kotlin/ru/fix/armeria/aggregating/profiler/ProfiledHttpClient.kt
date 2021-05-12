@@ -3,9 +3,7 @@ package ru.fix.armeria.aggregating.profiler
 import com.linecorp.armeria.client.ClientRequestContext
 import com.linecorp.armeria.client.HttpClient
 import com.linecorp.armeria.client.SimpleDecoratingHttpClient
-import com.linecorp.armeria.common.HttpRequest
-import com.linecorp.armeria.common.HttpResponse
-import com.linecorp.armeria.common.RequestContext
+import com.linecorp.armeria.common.*
 import com.linecorp.armeria.common.logging.RequestLog
 import com.linecorp.armeria.common.logging.RequestLogProperty
 import com.linecorp.armeria.common.logging.RequestOnlyLog
@@ -20,7 +18,15 @@ import ru.fix.armeria.commons.sessionProtocol
 import java.net.InetSocketAddress
 import java.util.function.Function
 
-class ProfiledHttpClient private constructor(delegate: HttpClient, private val profiler: Profiler) :
+/**
+ * @param isResponseStatusValid  It is guaranteed that input [HttpStatus] is not [HttpStatus.UNKNOWN]
+ * so that if this checking function is called then http response is received
+ */
+class ProfiledHttpClient private constructor(
+    delegate: HttpClient,
+    private val profiler: Profiler,
+    private val isResponseStatusValid: (HttpStatus) -> Boolean
+) :
     SimpleDecoratingHttpClient(delegate) {
 
     override fun execute(ctx: ClientRequestContext, req: HttpRequest): HttpResponse {
@@ -108,7 +114,7 @@ class ProfiledHttpClient private constructor(delegate: HttpClient, private val p
     }
 
     private fun profileOnRequestCompleted(req: HttpRequest, log: RequestLog) {
-        val profiledError: ProfiledError? = log.detectProfiledErrorIfAny()
+        val profiledError: ProfiledError? = log.detectProfiledErrorIfAny(isResponseStatusValid)
 
         if (profiledError != null && profiledError is ProfiledError.UnrecognizedError) {
             when (val unrecognizedErrorType = profiledError) {
@@ -170,10 +176,17 @@ class ProfiledHttpClient private constructor(delegate: HttpClient, private val p
 
         private data class ConnectProfiledCall(val profiledCall: ProfiledCall, val connectStartTimestamp: Long)
 
+        /**
+         * @param isResponseStatusValid  It is guaranteed that input [HttpStatus] is not [HttpStatus.UNKNOWN]
+         * so that if this checking function is called then http response is received
+         */
         @JvmStatic
-        fun newDecorator(profiler: Profiler): Function<HttpClient, HttpClient> =
+        fun newDecorator(
+            profiler: Profiler,
+            isResponseStatusValid: (HttpStatus) -> Boolean = { it.codeClass() == HttpStatusClass.SUCCESS }
+        ): Function<HttpClient, HttpClient> =
             Function {
-                ProfiledHttpClient(it, profiler)
+                ProfiledHttpClient(it, profiler, isResponseStatusValid)
             }
 
     }

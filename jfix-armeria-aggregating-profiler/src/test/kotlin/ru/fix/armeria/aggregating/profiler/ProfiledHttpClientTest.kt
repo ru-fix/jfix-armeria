@@ -347,6 +347,72 @@ internal class ProfiledHttpClientTest {
     }
 
     @Test
+    suspend fun `non-200 http status is valid`() {
+        val profiler = AggregatingProfiler()
+        val profilerReporter = profiler.createReporter()
+        val path = "/non200success"
+        val mockServer = ArmeriaMockServer {
+            service(path) { _, _ ->
+                HttpResponse.of(HttpStatus.FOUND)
+            }
+        }
+        mockServer.start()
+        val client = WebClient
+            .builder(mockServer.httpUri())
+            .decorator(ProfiledHttpClient.newDecorator(profiler) { it == HttpStatus.FOUND })
+            .build()
+        try {
+            client.get(path).aggregate().await()
+        } catch (e: Exception) {
+            logger.error(e)
+        }
+
+        eventually(1.seconds) {
+            val report = profilerReporter.buildReportAndReset { metric, _ ->
+                metric.name == Metrics.HTTP_CONNECT
+            }
+            report.profiledCallReportWithNameEnding(Metrics.HTTP_CONNECT) should {
+                it.shouldNotBeNull()
+                it.stopSum shouldBe 1
+                it.identity.tags shouldContainExactly mapOf(
+                    MetricTags.PATH to path,
+                    MetricTags.METHOD to "GET",
+                    MetricTags.PROTOCOL to "http",
+                    MetricTags.IS_MULTIPLEX_PROTOCOL to false.toString(),
+                    MetricTags.REMOTE_ADDRESS to LocalHost.IP.value,
+                    MetricTags.REMOTE_HOST to LocalHost.HOSTNAME.value,
+                    MetricTags.REMOTE_PORT to mockServer.httpPort().toString()
+                )
+            }
+        }
+        eventually(1.seconds) {
+            val report = profilerReporter.buildReportAndReset { metric, _ ->
+                metric.name == Metrics.HTTP_CONNECTED
+            }
+            report.profiledCallReportWithNameEnding(Metrics.HTTP_CONNECTED) should {
+                it.shouldNotBeNull()
+                it.stopSum shouldBe 1
+                it.identity.tags shouldContainExactly mapOf(
+                    MetricTags.PATH to path,
+                    MetricTags.METHOD to "GET",
+                    MetricTags.PROTOCOL to "h2c",
+                    MetricTags.IS_MULTIPLEX_PROTOCOL to true.toString(),
+                    MetricTags.CHANNEL_CLASS to EPOLL_SOCKET_CHANNEL,
+                    MetricTags.REMOTE_ADDRESS to LocalHost.IP.value,
+                    MetricTags.REMOTE_HOST to LocalHost.HOSTNAME.value,
+                    MetricTags.REMOTE_PORT to mockServer.httpPort().toString()
+                )
+            }
+        }
+        eventually(1.seconds) {
+            val report = profilerReporter.buildReportAndReset { metric, _ ->
+                metric.name == Metrics.HTTP_ERROR
+            }
+            report.profiledCallReportWithNameEnding(Metrics.HTTP_ERROR) shouldBe null
+        }
+    }
+
+    @Test
     suspend fun `http (and not only) error WHEN endpoint group is empty THEN error profiled`() {
         val testPath = "/test-no-endpoint-group-error"
         val profiler = AggregatingProfiler()

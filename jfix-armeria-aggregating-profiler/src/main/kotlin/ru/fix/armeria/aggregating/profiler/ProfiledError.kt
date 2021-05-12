@@ -5,7 +5,6 @@ import com.linecorp.armeria.client.SessionProtocolNegotiationException
 import com.linecorp.armeria.client.endpoint.EndpointGroupException
 import com.linecorp.armeria.common.ClosedSessionException
 import com.linecorp.armeria.common.HttpStatus
-import com.linecorp.armeria.common.HttpStatusClass
 import com.linecorp.armeria.common.logging.RequestLog
 import com.linecorp.armeria.common.stream.ClosedStreamException
 import io.netty.handler.codec.http2.Http2Error
@@ -27,7 +26,7 @@ internal sealed class ProfiledError(
     object ConnectRefused : ProfiledError(latencyMetricRequired = true, typeMetricName = "connect_refused")
     object ConnectTimeout : ProfiledError(typeMetricName = "connect_timeout")
     object NoAvailableEndpoint : ProfiledError(typeMetricName = "no_available_endpoint")
-    object RequestClosedSession: ProfiledError(
+    object RequestClosedSession : ProfiledError(
         latencyMetricRequired = true,
         typeMetricName = "request_closed_session"
     )
@@ -63,12 +62,16 @@ internal sealed class ProfiledError(
     }
 }
 
-internal fun RequestLog.detectProfiledErrorIfAny(): ProfiledError? {
+/**
+ * @param isResponseStatusValid  It is guaranteed that input [HttpStatus] is not [HttpStatus.UNKNOWN]
+ * so that if this checking function is called then http response is received
+ */
+internal fun RequestLog.detectProfiledErrorIfAny(isResponseStatusValid: (HttpStatus) -> Boolean): ProfiledError? {
     val requestCause = requestCause()
     val responseCause = responseCause()
     val status = responseHeaders().status()
     return when {
-        status.codeClass() != HttpStatusClass.SUCCESS && status != HttpStatus.UNKNOWN -> ProfiledError.InvalidStatus
+        status != HttpStatus.UNKNOWN && !isResponseStatusValid(status) -> ProfiledError.InvalidStatus
         requestCause != null -> requestCause.unwrapUnprocessedExceptionIfNecessary().let {
             when (it) {
                 is ConnectException -> ProfiledError.ConnectRefused
