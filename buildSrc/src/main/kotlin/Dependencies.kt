@@ -18,8 +18,9 @@ object Vers {
     const val jfix_stdlib = "3.0.15"
 
     // Armeria and Retrofit
-    const val armeria = "1.6.0"
+    const val armeria = "1.13.2"
     const val retrofit = "2.9.0"
+    const val jackson = "2.10.2"
 
     // Logging
     const val log4j = "2.12.0"
@@ -31,7 +32,7 @@ object Vers {
 
     // Testing
     const val junit = "5.7.1"
-    const val kotest = "4.3.0"
+    const val kotest = "4.3.2"
     const val mockk = "1.10.2"
     const val corounit = "1.0.34"
     const val testcontainers = "1.16.2"
@@ -51,6 +52,8 @@ object Libs {
 
     // Kotlin
     const val kotlin_stdlib = "org.jetbrains.kotlin:kotlin-stdlib:${Vers.kotlin}"
+    const val kotlin_stdlib_common = "org.jetbrains.kotlin:kotlin-stdlib-common:${Vers.kotlin}"
+    const val kotlin_reflect = "org.jetbrains.kotlin:kotlin-reflect:${Vers.kotlin}"
     const val kotlin_jdk8 = "org.jetbrains.kotlin:kotlin-stdlib-jdk8:${Vers.kotlin}"
     const val kotlinx_coroutines_core = "org.jetbrains.kotlinx:kotlinx-coroutines-core:${Vers.kotlinx_coroutines}"
     const val kotlinx_coroutines_jdk8 = "org.jetbrains.kotlinx:kotlinx-coroutines-jdk8:${Vers.kotlinx_coroutines}"
@@ -71,11 +74,12 @@ object Libs {
 
     // Armeria
     const val armeria = "com.linecorp.armeria:armeria:${Vers.armeria}"
-    const val armeria_kotlin = "com.linecorp.armeria:armeria-kotlin:${Vers.armeria}"
     const val armeria_retrofit2 = "com.linecorp.armeria:armeria-retrofit2:${Vers.armeria}"
 
     // Retrofit
     const val retrofit2_converter_jackson = "com.squareup.retrofit2:converter-jackson:${Vers.retrofit}"
+    const val jackson_databind = "com.fasterxml.jackson.core:jackson-databind:2.10.2"
+    const val jackson_kotlin = "com.fasterxml.jackson.module:jackson-module-kotlin:2.10.2"
     const val retrofit2_converter_scalars = "com.squareup.retrofit2:converter-scalars:${Vers.retrofit}"
 
     // Spring

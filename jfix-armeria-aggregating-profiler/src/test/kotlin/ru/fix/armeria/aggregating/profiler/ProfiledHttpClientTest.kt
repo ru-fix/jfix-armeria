@@ -8,12 +8,15 @@ import com.linecorp.armeria.client.endpoint.EndpointGroup
 import com.linecorp.armeria.client.endpoint.EndpointSelectionStrategy
 import com.linecorp.armeria.client.retry.RetryingClient
 import com.linecorp.armeria.common.*
+import com.linecorp.armeria.server.annotation.Get
 import io.kotest.assertions.assertSoftly
 import io.kotest.assertions.timing.eventually
+import io.kotest.inspectors.forAll
 import io.kotest.inspectors.forOne
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.longs.shouldBeGreaterThan
 import io.kotest.matchers.maps.shouldContainExactly
+import io.kotest.matchers.maps.shouldContainKey
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
@@ -300,7 +303,8 @@ internal class ProfiledHttpClientTest {
                 val expectedErrorMetricTags = getExpectedErrorMetricTags(mockServer.mockUri).toMap()
 
                 try {
-                    client.get(ErrorProfilingTest.TEST_PATH).aggregate().await()
+                    client.get("${ErrorProfilingTest.TEST_PATH}?testParam1=param1&testParam2=param2")
+                        .aggregate().await()
                 } catch (e: Exception) {
                     logger.error(e)
                 }
@@ -448,6 +452,80 @@ internal class ProfiledHttpClientTest {
                     )
                 }
             }
+        }
+    }
+
+    @Test
+    suspend fun `WHEN query string contains query parameters THEN they removed from metric 'path' label`() {
+        val profiler = AggregatingProfiler()
+        val profilerReporter = profiler.createReporter()
+        val path = "/pathWithQueryParams"
+        val mockServer = ArmeriaMockServer {
+            annotatedService(object : Any() {
+                @Get("/pathWithQueryParams")
+                fun testPath(queryParams: QueryParams): HttpResponse {
+                    logger.info { "GET Request with query params arrived: $queryParams" }
+                    return HttpResponse.of(HttpStatus.OK)
+                }
+            })
+        }
+        mockServer.start()
+        try {
+            val client = WebClient
+                .builder(mockServer.httpUri())
+                .decorator(ProfiledHttpClient.newDecorator(profiler))
+                .build()
+            try {
+                client.get("$path?testParam1=val1&testParam2=val2").aggregate().await()
+            } catch (e: Exception) {
+                logger.error(e)
+            }
+
+            val pathLabelOfConnectMetric: String = eventually(1.seconds) {
+                val report = profilerReporter.buildReportAndReset { metric, _ ->
+                    metric.name == Metrics.HTTP_CONNECT
+                }
+                val connectMetric = report.profiledCallReportWithNameEnding(Metrics.HTTP_CONNECT)
+                connectMetric should {
+                    it.shouldNotBeNull()
+                    it.stopSum shouldBe 1
+                    it.identity.tags shouldContainKey MetricTags.PATH
+                }
+                connectMetric!!.identity.tags[MetricTags.PATH]!!
+            }
+            val pathLabelOfConnectedMetric: String = eventually(1.seconds) {
+                val report = profilerReporter.buildReportAndReset { metric, _ ->
+                    metric.name == Metrics.HTTP_CONNECTED
+                }
+                val connectedMetric = report.profiledCallReportWithNameEnding(Metrics.HTTP_CONNECTED)
+                connectedMetric should {
+                    it.shouldNotBeNull()
+                    it.stopSum shouldBe 1
+                    it.identity.tags shouldContainKey MetricTags.PATH
+                }
+                connectedMetric!!.identity.tags[MetricTags.PATH]!!
+            }
+            val pathLabelOfHttpSuccessMetric: String = eventually(1.seconds) {
+                val report = profilerReporter.buildReportAndReset { metric, _ ->
+                    metric.name == Metrics.HTTP_SUCCESS
+                }
+                val httpSuccessMetric = report.profiledCallReportWithNameEnding(Metrics.HTTP_SUCCESS)
+                httpSuccessMetric should {
+                    it.shouldNotBeNull()
+
+                    it.identity.tags shouldContainKey MetricTags.PATH
+                }
+                httpSuccessMetric!!.identity.tags[MetricTags.PATH]!!
+            }
+            mapOf(
+                "connect metric" to pathLabelOfConnectMetric,
+                "connected metric" to pathLabelOfConnectedMetric,
+                "http success metric" to pathLabelOfHttpSuccessMetric
+            ).asSequence().forAll { (_, value) ->
+                value shouldBe path
+            }
+        } finally {
+            mockServer.stop()
         }
     }
 

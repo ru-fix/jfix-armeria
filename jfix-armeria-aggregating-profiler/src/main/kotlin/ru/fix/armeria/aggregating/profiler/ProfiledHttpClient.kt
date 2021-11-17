@@ -14,7 +14,6 @@ import ru.fix.aggregating.profiler.ProfiledCall
 import ru.fix.aggregating.profiler.Profiler
 import ru.fix.armeria.commons.endpointInetSockedAddress
 import ru.fix.armeria.commons.knownResponseStatus
-import ru.fix.armeria.commons.sessionProtocol
 import java.net.InetSocketAddress
 import java.util.function.Function
 
@@ -53,7 +52,7 @@ class ProfiledHttpClient private constructor(
             Identity(
                 Metrics.HTTP_CONNECT,
                 MetricTags.build(
-                    path = req.path(),
+                    path = ctx.decodedPath(),
                     method = req.method(),
                     protocol = ctx.sessionProtocol(),
                     remoteInetSocketAddress = endpointInetSocketAddress(req, ctx)
@@ -64,6 +63,8 @@ class ProfiledHttpClient private constructor(
             start()
         }
     }
+
+    private fun RequestOnlyLog.decodedPath(): String = context().decodedPath()
 
     private fun endpointInetSocketAddress(req: HttpRequest, reqContext: RequestContext): InetSocketAddress? =
         reqContext.endpointInetSockedAddress
@@ -95,7 +96,7 @@ class ProfiledHttpClient private constructor(
                          */
                         Metrics.HTTP_CONNECTED,
                         MetricTags.build(
-                            path = req.path(),
+                            path = log.decodedPath(),
                             method = req.method(),
                             remoteInetSocketAddress = log.context().endpointInetSockedAddress,
                             protocol = log.sessionProtocol(),
@@ -109,8 +110,6 @@ class ProfiledHttpClient private constructor(
                 ).call(log.connectionTimings()?.connectionAcquisitionStartTimeMillis() ?: it.connectStartTimestamp)
             }
         }
-
-
     }
 
     private fun profileOnRequestCompleted(req: HttpRequest, log: RequestLog) {
@@ -135,11 +134,11 @@ class ProfiledHttpClient private constructor(
         }
 
         val tags = MetricTags.build(
-            path = req.path(),
+            path = log.decodedPath(),
             method = req.method(),
             remoteInetSocketAddress = endpointInetSocketAddress(req, log.context()),
             responseStatusCode = log.knownResponseStatus,
-            protocol = log.sessionProtocol,
+            protocol = log.sessionProtocol(),
             channel = log.channel()
         )
 
@@ -188,9 +187,5 @@ class ProfiledHttpClient private constructor(
             Function {
                 ProfiledHttpClient(it, profiler, isResponseStatusValid)
             }
-
     }
-
 }
-
-

@@ -5,18 +5,19 @@ plugins {
     kotlin("jvm")
 }
 
-java {
-    val main by sourceSets
-    for (facadeFeature in JFixArmeriaFacadeFeatures.values()) {
-        registerFeature(facadeFeature.featureName) {
-            usingSourceSet(main)
-            for (capabilityName in facadeFeature.capabilitiesNames) {
-                capability(group.toString(), capabilityName, version.toString())
+java(
+    Action {
+        val main by sourceSets
+        for (facadeFeature in JFixArmeriaFacadeFeatures.values()) {
+            registerFeature(facadeFeature.featureName) {
+                usingSourceSet(main)
+                for (capabilityName in facadeFeature.capabilitiesNames) {
+                    capability(group.toString(), capabilityName, version.toString())
+                }
             }
         }
     }
-}
-
+)
 
 dependencies {
     // Kotlin
@@ -24,7 +25,6 @@ dependencies {
     implementation(Libs.kotlin_jdk8)
 
     api(Libs.armeria)
-
 
     // jfix-armeria optional modules
     implementation(project(Projs.commons.dependency))
@@ -43,10 +43,8 @@ dependencies {
     `retrofit with jfix-stdlib executors support`.api(Libs.armeria_retrofit2)
     `retrofit with jfix-stdlib executors support`.implementation(Libs.jfix_stdlib_concurrency)
 
-
     // Logging
     implementation(Libs.log4j_kotlin)
-
 
     // Testing
     testImplementation(project(Projs.`commons-testing`.dependency))
@@ -67,9 +65,24 @@ dependencies {
     //  Mocking
     testImplementation(Libs.mockk)
     testImplementation(Libs.armeria_junit5)
-    testImplementation(Libs.armeria_kotlin)
     //  Retrofit integration
     testImplementation(Libs.retrofit2_converter_jackson)
+    testRuntime(
+        Libs.jackson_databind,
+        Action {
+            version {
+                strictly(Vers.jackson)
+            }
+        }
+    )
+    testRuntime(
+        Libs.jackson_kotlin,
+        Action {
+            version {
+                strictly(Vers.jackson)
+            }
+        }
+    )
     testImplementation(Libs.retrofit2_converter_scalars)
     //  TestContainers
     testImplementation(Libs.testcontainers)
