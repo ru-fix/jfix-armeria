@@ -1,7 +1,7 @@
 object Vers {
 
     // Gradle plugins
-    const val gradle_release_plugin = "1.3.17"
+    const val gradle_release_plugin = "1.4.3"
     const val dokkav_plugin = "0.10.1"
     const val asciidoctor_plugin = "1.5.9.2"
     const val nexus_staging_plugin = "0.21.2"
