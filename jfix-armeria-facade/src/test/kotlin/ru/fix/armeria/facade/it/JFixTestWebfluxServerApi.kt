@@ -12,6 +12,7 @@ import okhttp3.MediaType
 import okhttp3.ResponseBody
 import okio.Buffer
 import retrofit2.http.GET
+import retrofit2.http.Path
 import retrofit2.http.Query
 
 interface JFixTestWebfluxServerApi {
@@ -22,9 +23,9 @@ interface JFixTestWebfluxServerApi {
         const val DELAYED_PARTS_PATH = "$BASE_PATH/delayedParts"
     }
 
-    @GET(DELAYED_ANSWER_PATH)
+    @GET("$DELAYED_ANSWER_PATH/{delayMs}")
     suspend fun delayedAnswer(
-        @Query("delayMs") delayMs: Long,
+        @Path("delayMs") delayMs: Long,
         @Query("jitter") jitter: Long? = null
     ): String
 
@@ -33,7 +34,7 @@ interface JFixTestWebfluxServerApi {
         @Query("partsCount") partsCount: Int,
         @Query("partSize") partSizeInBytes: Int,
         @Query("delayBetweenPartsMs") delayBetweenPartsMs: Long? = null
-    ): ResponseBody //force Retrofit to wait response but to do not load it into memory
+    ): ResponseBody // force Retrofit to wait response but to do not load it into memory
 }
 
 class TestApiWebClientBasedImpl(private val webClient: WebClient) : JFixTestWebfluxServerApi {
@@ -41,21 +42,20 @@ class TestApiWebClientBasedImpl(private val webClient: WebClient) : JFixTestWebf
     companion object {
         private val OCTET_STREAM_MEDIA_TYPE = MediaType.get(MediaTypeNames.OCTET_STREAM)
         private val EMPTY_BUFFER = Buffer()
-
     }
 
     override suspend fun delayedAnswer(delayMs: Long, jitter: Long?): String {
         val response = webClient.get(
-            "${JFixTestWebfluxServerApi.DELAYED_ANSWER_PATH}?delayMs=${delayMs}${jitter?.let { "&jitter=${it}" } ?: ""}"
+            "${JFixTestWebfluxServerApi.DELAYED_ANSWER_PATH}/$delayMs${jitter?.let { "?jitter=$it" } ?: ""}"
         ).aggregate().await()
         return response.contentUtf8()
     }
 
     override suspend fun delayedParts(partsCount: Int, partSizeInBytes: Int, delayBetweenPartsMs: Long?): ResponseBody {
         val path = JFixTestWebfluxServerApi.DELAYED_PARTS_PATH +
-                "?partsCount=${partsCount}" +
-                "&partSize=${partSizeInBytes}" +
-                (delayBetweenPartsMs?.let { "&delayBetweenPartsMs=$it" } ?: "")
+            "?partsCount=$partsCount" +
+            "&partSize=$partSizeInBytes" +
+            (delayBetweenPartsMs?.let { "&delayBetweenPartsMs=$it" } ?: "")
         val response = webClient.execute(
             RequestHeaders.of(
                 HttpMethod.GET,
@@ -71,5 +71,4 @@ class TestApiWebClientBasedImpl(private val webClient: WebClient) : JFixTestWebf
             EMPTY_BUFFER
         )
     }
-
 }

@@ -49,7 +49,7 @@ class UnstableServerResponsesIT {
                             .setEndpoint(mockServerContainer.host, mockServerContainer.serverPort)
                             .setIoThreadsCount(1)
                             .enableConnectionsProfiling(profiler)
-                            .withRetriesOn503AndUnprocessedError(3)
+                            .withRetriesOn503AndRetriableError(3)
                             .withCustomResponseTimeouts()
                             .setResponseTimeouts(
                                 eachAttemptTimeout = 2.minutes.j,
@@ -156,7 +156,7 @@ class UnstableServerResponsesIT {
                         .setEndpoint(mockServerContainer.host, mockServerContainer.serverPort)
                         .setIoThreadsCount(1)
                         .enableConnectionsProfiling(profiler)
-                        .withRetriesOn503AndUnprocessedError(3)
+                        .withRetriesOn503AndRetriableError(3)
                         .withCustomResponseTimeouts()
                         .setResponseTimeouts(
                             eachAttemptTimeout = 15.seconds.j,
@@ -177,7 +177,7 @@ class UnstableServerResponsesIT {
                         .setEndpoint(mockServerContainer.host, mockServerContainer.serverPort)
                         .setIoThreadsCount(1)
                         .enableConnectionsProfiling(profiler)
-                        .withRetriesOn503AndUnprocessedError(3)
+                        .withRetriesOn503AndRetriableError(3)
                         .withCustomResponseTimeouts()
                         .setResponseTimeouts(
                             eachAttemptTimeout = 15.seconds.j,
@@ -241,7 +241,7 @@ class UnstableServerResponsesIT {
                                 val metricName = "${clientName}${expectedMetricSuffix?.let { ".$it" } ?: ""}.http"
                                 val report = reporter.buildReportAndReset { metric, _ ->
                                     metric.name == metricName
-                                            && metric.tags["path"]?.contains("delayMs=$fastRequestDelayMs")
+                                            && metric.tags["path"]?.contains("/$fastRequestDelayMs")
                                             ?: false
                                 }
                                 logger.trace { "Report: $report" }

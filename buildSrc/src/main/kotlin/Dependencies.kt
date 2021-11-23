@@ -28,7 +28,7 @@ object Vers {
     const val kotlin_logging = "2.0.3"
 
     // Spring
-    const val spring_boot = "2.4.5"
+    const val spring_boot = "2.5.6"
 
     // Testing
     const val junit = "5.7.1"

@@ -74,7 +74,7 @@ internal class HttpClientsTest {
                 //connections profiling
                 .enableConnectionsProfiling(profiler)
                 //retrying
-                .withRetriesOn503AndUnprocessedError(4)
+                .withRetriesOn503AndRetriableError(4)
                 //profiling requests
                 .enableEachAttemptProfiling(profiler)
                 .enableWholeRequestProfiling(profiler)

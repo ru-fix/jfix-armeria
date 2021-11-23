@@ -114,7 +114,14 @@ interface PreparingHttpClientBuilder : BaseHttpClientBuilder<PreparingHttpClient
 
     fun withRetries(maxTotalAttempts: Int, retryRule: RetryRule): PreparingRetryingHttpClientBuilder
 
+    @Deprecated(
+        "'Unprocessed' name creates misunderstanding. Use withRetriesOn503AndRetriableError",
+        replaceWith = ReplaceWith(expression = "withRetriesOn503AndRetriableError(maxTotalAttempts)")
+    )
     fun withRetriesOn503AndUnprocessedError(maxTotalAttempts: Int): PreparingRetryingHttpClientBuilder =
+        withRetries(maxTotalAttempts, On503AndUnprocessedRetryRule)
+
+    fun withRetriesOn503AndRetriableError(maxTotalAttempts: Int): PreparingRetryingHttpClientBuilder =
         withRetries(maxTotalAttempts, On503AndUnprocessedRetryRule)
 
     fun withoutRetries(): NotRetryingHttpClientBuilder
