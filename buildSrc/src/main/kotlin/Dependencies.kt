@@ -34,7 +34,7 @@ object Vers {
     const val kotest = "4.3.0"
     const val mockk = "1.10.2"
     const val corounit = "1.0.34"
-    const val testcontainers = "1.14.3"
+    const val testcontainers = "1.16.2"
 }
 
 object Libs {
