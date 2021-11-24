@@ -5,4 +5,4 @@ on:
       - '*'
 jobs:
   deploy-job:
-    uses: ru-fix/jfix-armeria/.github/workflows/deploy-action.yml@main
+    uses: ru-fix/jfix-armeria/.github/workflows/deploy-action.yml@release/1.0
