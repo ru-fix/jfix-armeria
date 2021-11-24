@@ -6,14 +6,18 @@ import com.linecorp.armeria.client.WebClient
 import com.linecorp.armeria.client.WebClientBuilder
 import com.linecorp.armeria.client.endpoint.EndpointGroup
 import com.linecorp.armeria.client.endpoint.EndpointSelectionStrategy
+import com.linecorp.armeria.client.retry.RetryConfig
 import com.linecorp.armeria.client.retry.RetryingClient
 import com.linecorp.armeria.common.*
+import com.linecorp.armeria.server.annotation.Get
 import io.kotest.assertions.assertSoftly
 import io.kotest.assertions.timing.eventually
+import io.kotest.inspectors.forAll
 import io.kotest.inspectors.forOne
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.longs.shouldBeGreaterThan
 import io.kotest.matchers.maps.shouldContainExactly
+import io.kotest.matchers.maps.shouldContainKey
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
@@ -32,6 +36,8 @@ import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.ArgumentsProvider
 import org.junit.jupiter.params.provider.ArgumentsSource
 import ru.fix.aggregating.profiler.AggregatingProfiler
+import ru.fix.aggregating.profiler.ProfiledCallReport
+import ru.fix.aggregating.profiler.ProfilerReporter
 import ru.fix.armeria.aggregating.profiler.ProfilerTestUtils.EPOLL_SOCKET_CHANNEL
 import ru.fix.armeria.aggregating.profiler.ProfilerTestUtils.profiledCallReportWithNameEnding
 import ru.fix.armeria.aggregating.profiler.ProfilerTestUtils.profiledCallReportsWithNameEnding
@@ -82,7 +88,7 @@ internal class ProfiledHttpClientTest {
                 MetricTags.REMOTE_PORT to mockServer.httpPort().toString()
             )
             val expectedConnectedMetricTags = expectedConnectMetricTags + mapOf(
-                //protocol and channel information are determined on this phase
+                // protocol and channel information are determined on this phase
                 MetricTags.PROTOCOL to testCaseArguments.otherMetricsTagProtocol,
                 MetricTags.IS_MULTIPLEX_PROTOCOL to testCaseArguments.otherMetricsTagIsMultiplex.toString(),
                 MetricTags.CHANNEL_CLASS to EPOLL_SOCKET_CHANNEL
@@ -114,7 +120,6 @@ internal class ProfiledHttpClientTest {
             mockServer.stop()
         }
     }
-
 
     @TestFactory
     fun `http (and not only) error WHEN error occured THEN it is profiled with corresponding status`() =
@@ -157,7 +162,6 @@ internal class ProfiledHttpClientTest {
                             service(ErrorProfilingTest.TEST_PATH) { _, _ ->
                                 HttpResponse.of(HttpStatus.INTERNAL_SERVER_ERROR)
                             }
-
                         }
                         mockServer.start()
                         ErrorProfilingTest.Case.MockServer(mockServer.httpUri()) {
@@ -184,7 +188,7 @@ internal class ProfiledHttpClientTest {
                 ErrorProfilingTest.Case(
                     testCaseName = "Connection refused",
                     mockServerGenerator = {
-                        //non-existing address
+                        // non-existing address
                         ErrorProfilingTest.Case.MockServer(
                             URI.create("http://${LocalHost.HOSTNAME.value}:${getAvailableRandomPort()}")
                         ) {}
@@ -284,10 +288,12 @@ internal class ProfiledHttpClientTest {
             ).iterator(),
 
             { it.testCaseName }
-        ) { (_, setupMockForError: suspend () -> ErrorProfilingTest.Case.MockServer,
-                                          getExpectedErrorMetricTags: (URI) -> List<MetricTag>,
-                                          latencyMetricRequired: Boolean,
-                                          webClientBuilderCustomizer: WebClientBuilder.() -> WebClientBuilder) ->
+        ) { (
+            _, setupMockForError: suspend () -> ErrorProfilingTest.Case.MockServer,
+            getExpectedErrorMetricTags: (URI) -> List<MetricTag>,
+            latencyMetricRequired: Boolean,
+            webClientBuilderCustomizer: WebClientBuilder.() -> WebClientBuilder
+        ) ->
             runBlocking<Unit> {
 
                 val profiler = AggregatingProfiler()
@@ -300,7 +306,8 @@ internal class ProfiledHttpClientTest {
                 val expectedErrorMetricTags = getExpectedErrorMetricTags(mockServer.mockUri).toMap()
 
                 try {
-                    client.get(ErrorProfilingTest.TEST_PATH).aggregate().await()
+                    client.get("${ErrorProfilingTest.TEST_PATH}?testParam1=param1&testParam2=param2")
+                        .aggregate().await()
                 } catch (e: Exception) {
                     logger.error(e)
                 }
@@ -452,6 +459,64 @@ internal class ProfiledHttpClientTest {
     }
 
     @Test
+    suspend fun `WHEN query string contains query parameters THEN they removed from metric 'path' label`() {
+        val profiler = AggregatingProfiler()
+        val profilerReporter = profiler.createReporter()
+        val path = "/pathWithQueryParams"
+        val mockServer = ArmeriaMockServer {
+            annotatedService(object : Any() {
+                @Get("/pathWithQueryParams")
+                fun testPath(queryParams: QueryParams): HttpResponse {
+                    logger.info { "GET Request with query params arrived: $queryParams" }
+                    return HttpResponse.of(HttpStatus.OK)
+                }
+            })
+        }
+        mockServer.start()
+        try {
+            val client = WebClient
+                .builder(mockServer.httpUri())
+                .decorator(ProfiledHttpClient.newDecorator(profiler))
+                .build()
+            try {
+                client.get("$path?testParam1=val1&testParam2=val2").aggregate().await()
+            } catch (e: Exception) {
+                logger.error(e)
+            }
+
+            val pathLabelOfConnectMetric: String = profilerReporter
+                .assertMetricPresentAndGetItsPathLabel(Metrics.HTTP_CONNECT)
+            val pathLabelOfConnectedMetric: String = profilerReporter
+                .assertMetricPresentAndGetItsPathLabel(Metrics.HTTP_CONNECTED)
+            val pathLabelOfHttpSuccessMetric: String = profilerReporter
+                .assertMetricPresentAndGetItsPathLabel(Metrics.HTTP_SUCCESS)
+            mapOf(
+                "connect metric" to pathLabelOfConnectMetric,
+                "connected metric" to pathLabelOfConnectedMetric,
+                "http success metric" to pathLabelOfHttpSuccessMetric
+            ).asSequence().forAll { (_, value) ->
+                value shouldBe path
+            }
+        } finally {
+            mockServer.stop()
+        }
+    }
+
+    private suspend fun ProfilerReporter.assertMetricPresentAndGetItsPathLabel(metricName: String) =
+        eventually(1.seconds) {
+            val report = buildReportAndReset { metric, _ ->
+                metric.name == metricName
+            }
+            val metric: ProfiledCallReport? = report.profiledCallReportWithNameEnding(metricName)
+            metric should {
+                it.shouldNotBeNull()
+                it.stopSum shouldBe 1
+                it.identity.tags shouldContainKey MetricTags.PATH
+            }
+            metric!!.identity.tags[MetricTags.PATH]!!
+        }
+
+    @Test
     suspend fun `WHEN retry decorator placed before profiled one THEN each retry attempt profiled`() {
         val profiler = AggregatingProfiler()
         val profilerReporter = profiler.createReporter()
@@ -477,7 +542,11 @@ internal class ProfiledHttpClientTest {
                     )
                 )
                 .decorator(ProfiledHttpClient.newDecorator(profiler))
-                .decorator(RetryingClient.newDecorator(On503AndUnprocessedRetryRule, 3))
+                .decorator(
+                    RetryingClient.newDecorator(
+                        RetryConfig.builder(On503AndUnprocessedRetryRule).maxTotalAttempts(3).build()
+                    )
+                )
                 .build()
 
             client.get("/").aggregate().await()
@@ -538,8 +607,8 @@ internal class ProfiledHttpClientTest {
             }
             eventually(1.seconds) {
                 val report = profilerReporter.buildReportAndReset { metric, _ ->
-                    metric.name == Metrics.HTTP_ERROR
-                            && metric.tags[MetricTags.ERROR_TYPE]?.let { it == "connect_refused" } ?: false
+                    metric.name == Metrics.HTTP_ERROR &&
+                        metric.tags[MetricTags.ERROR_TYPE]?.let { it == "connect_refused" } ?: false
                 }
                 logger.trace { "Report: $report" }
                 report.profiledCallReportWithNameEnding(Metrics.HTTP_ERROR) should {
@@ -560,8 +629,8 @@ internal class ProfiledHttpClientTest {
             }
             eventually(1.seconds) {
                 val report = profilerReporter.buildReportAndReset { metric, _ ->
-                    metric.name == Metrics.HTTP_ERROR
-                            && metric.tags[MetricTags.ERROR_TYPE]?.let { it == "invalid_status" } ?: false
+                    metric.name == Metrics.HTTP_ERROR &&
+                        metric.tags[MetricTags.ERROR_TYPE]?.let { it == "invalid_status" } ?: false
                 }
                 logger.trace { "Report: $report" }
                 report.profiledCallReportWithNameEnding(Metrics.HTTP_ERROR) should {
@@ -642,7 +711,11 @@ internal class ProfiledHttpClientTest {
                         mockServer2.httpEndpoint()
                     )
                 )
-                .decorator(RetryingClient.newDecorator(On503AndUnprocessedRetryRule, 3))
+                .decorator(
+                    RetryingClient.newDecorator(
+                        RetryConfig.builder(On503AndUnprocessedRetryRule).maxTotalAttempts(3).build()
+                    )
+                )
                 .decorator(ProfiledHttpClient.newDecorator(profiler))
                 .build()
             /*
@@ -706,7 +779,6 @@ internal class ProfiledHttpClientTest {
                     }
                 }
             }
-
         } finally {
             listOf(
                 mockServer.launchStop(),
@@ -750,7 +822,11 @@ internal class ProfiledHttpClientTest {
                         mockServer2.httpEndpoint()
                     )
                 )
-                .decorator(RetryingClient.newDecorator(On503AndUnprocessedRetryRule, 3))
+                .decorator(
+                    RetryingClient.newDecorator(
+                        RetryConfig.builder(On503AndUnprocessedRetryRule).maxTotalAttempts(3).build()
+                    )
+                )
                 .decorator(ProfiledHttpClient.newDecorator(profiler))
                 .build()
             /*
@@ -847,7 +923,6 @@ internal class ProfiledHttpClientTest {
     companion object : Logging {
 
         fun getAvailableRandomPort() = SocketChecker.getAvailableRandomPort()
-
     }
 
     object ProtocolSpecificTest {
@@ -886,7 +961,6 @@ internal class ProfiledHttpClientTest {
                     otherMetricsTagIsMultiplex = true
                 )
             )
-
         }
     }
 
@@ -928,7 +1002,6 @@ internal class ProfiledHttpClientTest {
                         }
                 }
             }
-
         }
 
         data class ProtocolSpecificCase(
@@ -949,9 +1022,6 @@ internal class ProfiledHttpClientTest {
                 val mockUri: URI,
                 val stop: suspend () -> Unit
             )
-
         }
-
     }
-
 }

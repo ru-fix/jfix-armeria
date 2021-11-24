@@ -1,4 +1,3 @@
-
 import de.marcphilipp.gradle.nexus.NexusPublishExtension
 import org.asciidoctor.gradle.AsciidoctorTask
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat
@@ -15,7 +14,6 @@ buildscript {
     repositories {
         mavenCentral()
         mavenLocal()
-        jcenter()
     }
 
     dependencies {
@@ -42,11 +40,11 @@ plugins {
  */
 fun envConfig() = object : ReadOnlyProperty<Any?, String?> {
     override fun getValue(thisRef: Any?, property: KProperty<*>): String? =
-            if (ext.has(property.name)) {
-                ext[property.name] as? String
-            } else {
-                System.getenv(property.name)
-            }
+        if (ext.has(property.name)) {
+            ext[property.name] as? String
+        } else {
+            System.getenv(property.name)
+        }
 }
 
 val repositoryUser by envConfig()
@@ -56,13 +54,15 @@ val signingKeyId by envConfig()
 val signingPassword by envConfig()
 val signingSecretKeyRingFile by envConfig()
 
-nexusStaging {
-    packageGroup = ProjectGroup
-    username = "$repositoryUser"
-    password = "$repositoryPassword"
-    numberOfRetries = 50
-    delayBetweenRetriesInMillis = 3_000
-}
+nexusStaging(
+    Action {
+        packageGroup = ProjectGroup
+        username = "$repositoryUser"
+        password = "$repositoryPassword"
+        numberOfRetries = 50
+        delayBetweenRetriesInMillis = 3_000
+    }
+)
 
 apply {
     plugin("ru.fix.gradle.release")
@@ -81,7 +81,6 @@ subprojects {
     }
 
     repositories {
-        jcenter()
         mavenCentral()
         mavenLocal()
         if (!repositoryUrl.isNullOrEmpty()) {
@@ -101,7 +100,7 @@ subprojects {
         outputFormat = "javadoc"
         outputDirectory = "$buildDir/dokka"
 
-        //TODO: wait dokka fix https://github.com/Kotlin/dokka/issues/294
+        // TODO: wait dokka fix https://github.com/Kotlin/dokka/issues/294
         enabled = false
     }
 
@@ -113,68 +112,81 @@ subprojects {
     }
 
     configure<NexusPublishExtension> {
-        repositories {
-            sonatype {
-                username.set("$repositoryUser")
-                password.set("$repositoryPassword")
-                useStaging.set(true)
+        repositories(
+            Action {
+                sonatype(
+                    Action {
+                        username.set("$repositoryUser")
+                        password.set("$repositoryPassword")
+                        useStaging.set(true)
+                    }
+                )
             }
-        }
+        )
         clientTimeout.set(Duration.of(4, ChronoUnit.MINUTES))
         connectTimeout.set(Duration.of(4, ChronoUnit.MINUTES))
     }
 
+    configurations.all {
+        resolutionStrategy {
+            force(Libs.kotlin_stdlib, Libs.kotlin_stdlib_common, Libs.kotlin_jdk8, Libs.kotlin_reflect)
+            force(Libs.kotlinx_coroutines_core, Libs.kotlinx_coroutines_jdk8)
+        }
+    }
+
     project.afterEvaluate {
         if (project.name.startsWith("jfix-armeria")) {
-            publishing {
+            publishing(
+                Action {
 
-                publications {
-                    //Internal repository setup
-                    repositories {
-                        maven {
-                            url = uri("$repositoryUrl")
-                            isAllowInsecureProtocol = true
-                            if (url.scheme.startsWith("http", true)) {
-                                credentials {
-                                    username = "$repositoryUser"
-                                    password = "$repositoryPassword"
+                    publications {
+                        // Internal repository setup
+                        repositories {
+                            maven {
+                                url = uri("$repositoryUrl")
+                                isAllowInsecureProtocol = true
+                                if (url.scheme.startsWith("http", true)) {
+                                    credentials {
+                                        username = "$repositoryUser"
+                                        password = "$repositoryPassword"
+                                    }
                                 }
                             }
                         }
-                    }
 
-                    create<MavenPublication>("maven") {
-                        from(components["java"])
+                        create<MavenPublication>("maven") {
+                            from(components["java"])
 
-                        artifact(sourcesJar)
-                        artifact(dokkaJar)
+                            artifact(sourcesJar)
+                            artifact(dokkaJar)
 
-                        pom {
-                            name.set("${project.group}:${project.name}")
-                            description.set("https://github.com/ru-fix/")
-                            url.set("https://github.com/ru-fix/${rootProject.name}")
-                            licenses {
-                                license {
-                                    name.set("The Apache License, Version 2.0")
-                                    url.set("http://www.apache.org/licenses/LICENSE-2.0.txt")
-                                }
-                            }
-                            developers {
-                                developer {
-                                    id.set("JFix Team")
-                                    name.set("JFix Team")
-                                    url.set("https://github.com/ru-fix/")
-                                }
-                            }
-                            scm {
+                            pom {
+                                name.set("${project.group}:${project.name}")
+                                description.set("https://github.com/ru-fix/")
                                 url.set("https://github.com/ru-fix/${rootProject.name}")
-                                connection.set("https://github.com/ru-fix/${rootProject.name}.git")
-                                developerConnection.set("https://github.com/ru-fix/${rootProject.name}.git")
+                                licenses {
+                                    license {
+                                        name.set("The Apache License, Version 2.0")
+                                        url.set("http://www.apache.org/licenses/LICENSE-2.0.txt")
+                                    }
+                                }
+                                developers {
+                                    developer {
+                                        id.set("JFix Team")
+                                        name.set("JFix Team")
+                                        url.set("https://github.com/ru-fix/")
+                                    }
+                                }
+                                scm {
+                                    url.set("https://github.com/ru-fix/${rootProject.name}")
+                                    connection.set("https://github.com/ru-fix/${rootProject.name}.git")
+                                    developerConnection.set("https://github.com/ru-fix/${rootProject.name}.git")
+                                }
                             }
                         }
                     }
                 }
-            }
+            )
         }
     }
 
@@ -236,10 +248,12 @@ subprojects {
 tasks {
     withType<AsciidoctorTask> {
         sourceDir = project.file("asciidoc")
-        resources(closureOf<CopySpec> {
-            from("asciidoc")
-            include("**/*.png")
-        })
+        resources(
+            closureOf<CopySpec> {
+                from("asciidoc")
+                include("**/*.png")
+            }
+        )
         doLast {
             copy {
                 from(outputDir.resolve("html5"))
