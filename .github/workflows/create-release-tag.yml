@@ -12,7 +12,7 @@ on:
         required: true
 
 jobs:
-  greet:
+  create-release:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
@@ -27,7 +27,7 @@ jobs:
     - name: Validate Gradle wrapper
       uses: gradle/wrapper-validation-action@e6e38bacfdf1a337459f332974bb2327a31aaf4b
     - name: Call gradle-release-plugin createRelease
-      run: ./gradlew createRelease
+      run: ./gradlew createRelease --stacktrace
     - name: Cleanup Gradle Cache
       run: |
         rm -f ~/.gradle/caches/modules-2/modules-2.lock
