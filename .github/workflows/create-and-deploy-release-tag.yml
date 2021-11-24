@@ -1,4 +1,4 @@
-name: create-release-tag
+name: create-and-deploy-release
 
 on:
   workflow_dispatch:
@@ -34,4 +34,5 @@ jobs:
           rm -f ~/.gradle/caches/modules-2/modules-2.lock
           rm -f ~/.gradle/caches/modules-2/gc.properties
   deploy-job:
+    needs: create-release-job
     uses: ru-fix/jfix-armeria/.github/workflows/deploy-action.yml@release/1.0
