@@ -1,0 +1,8 @@
+name: deploy-on-tag-push-action
+on:
+  push:
+    tags:
+      - '*'
+jobs:
+  deploy-job:
+    uses: ru-fix/jfix-armeria/.github/workflows/deploy-action.yml@main

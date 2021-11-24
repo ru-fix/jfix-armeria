@@ -1,8 +1,6 @@
-name: deploy-action
+name: reusable deploy-action
 on:
-  push:
-    tags:
-      - '*'
+  workflow_call:
 jobs:
   deploy-job:
     runs-on: ubuntu-latest
