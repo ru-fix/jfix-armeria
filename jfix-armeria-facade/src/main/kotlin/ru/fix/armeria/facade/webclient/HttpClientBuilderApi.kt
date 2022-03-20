@@ -1,5 +1,6 @@
 package ru.fix.armeria.facade.webclient
 
+import com.linecorp.armeria.client.ClientFactory
 import com.linecorp.armeria.client.ClientFactoryBuilder
 import com.linecorp.armeria.client.ClientOptionsBuilder
 import com.linecorp.armeria.client.endpoint.EndpointGroup
@@ -38,6 +39,7 @@ interface BaseHttpClientBuilder<out HttpClientBuilderT : BaseHttpClientBuilder<H
     fun setDynamicEndpoint(
         addressProperty: DynamicProperty<SocketAddress>
     ): HttpClientBuilderT
+
     /**
      * [jfix-armeria-dynamic-request](https://github.com/ru-fix/jfix-armeria) dependency
      * OR Gradle capability _jfix-armeria-facade-dynamic-request-support_ required.
@@ -45,6 +47,7 @@ interface BaseHttpClientBuilder<out HttpClientBuilderT : BaseHttpClientBuilder<H
     fun setDynamicEndpoints(
         addressListProperty: DynamicProperty<List<SocketAddress>>
     ): HttpClientBuilderT
+
     /**
      * [jfix-armeria-dynamic-request](https://github.com/ru-fix/jfix-armeria) dependency
      * OR Gradle capability _jfix-armeria-facade-dynamic-request-support_ required.
@@ -61,6 +64,11 @@ interface BaseHttpClientBuilder<out HttpClientBuilderT : BaseHttpClientBuilder<H
         endpointGroup: EndpointGroup
     ): HttpClientBuilderT
 
+    /**
+     * ioThreadsCount - the number of event loop threads
+     * if argument [count] is passed, it will be used - otherwise used the default number of common worker group threads
+     * in [buildArmeriaWebClient]
+     */
     fun setIoThreadsCount(count: Int): HttpClientBuilderT
 
     fun setConnectTimeout(duration: Duration): HttpClientBuilderT
@@ -100,6 +108,11 @@ interface BaseHttpClientBuilder<out HttpClientBuilderT : BaseHttpClientBuilder<H
 
     fun setSessionProtocol(sessionProtocol: SessionProtocol): HttpClientBuilderT
 
+    /**
+     * if argument [clientFactory] is passed, it will be used - otherwise it will build in method [buildArmeriaWebClient]
+     */
+    fun setClientFactory(clientFactory: ClientFactory): HttpClientBuilderT
+
     fun customizeArmeriaClientFactoryBuilder(
         customizer: ClientFactoryBuilder.() -> ClientFactoryBuilder
     ): HttpClientBuilderT
@@ -137,6 +150,7 @@ interface NotRetryingHttpClientBuilder : BaseHttpClientBuilder<NotRetryingHttpCl
     fun enableRequestsProfiling(profiler: Profiler): NotRetryingHttpClientBuilder
 
     fun setResponseTimeout(timeout: Duration): NotRetryingHttpClientBuilder
+
     /**
      * [jfix-armeria-dynamic-request](https://github.com/ru-fix/jfix-armeria) dependency
      * OR Gradle capability _jfix-armeria-facade-dynamic-request-support_ required.
@@ -144,6 +158,7 @@ interface NotRetryingHttpClientBuilder : BaseHttpClientBuilder<NotRetryingHttpCl
     fun setResponseTimeout(timeoutProperty: DynamicProperty<Duration>): NotRetryingHttpClientBuilder
 
     fun setWriteRequestTimeout(timeout: Duration): NotRetryingHttpClientBuilder
+
     /**
      * [jfix-armeria-dynamic-request](https://github.com/ru-fix/jfix-armeria) dependency
      * OR Gradle capability _jfix-armeria-facade-dynamic-request-support_ required.
@@ -170,6 +185,7 @@ interface BaseRetryingHttpClientBuilder<BuilderT : BaseRetryingHttpClientBuilder
     fun enableWholeRequestProfiling(profiler: Profiler): BuilderT
 
     fun setEachAttemptWriteRequestTimeout(timeout: Duration): BuilderT
+
     /**
      * [jfix-armeria-dynamic-request](https://github.com/ru-fix/jfix-armeria) dependency
      * OR Gradle capability _jfix-armeria-facade-dynamic-request-support_ required.
@@ -195,6 +211,7 @@ interface TimeoutsConfiguringRetryingHttpClientBuilder :
     BaseRetryingHttpClientBuilder<TimeoutsConfiguringRetryingHttpClientBuilder> {
 
     fun setEachAttemptResponseTimeout(timeout: Duration): TimeoutsImmutableRetryingHttpClientBuilder
+
     /**
      * [jfix-armeria-dynamic-request](https://github.com/ru-fix/jfix-armeria) dependency
      * OR Gradle capability _jfix-armeria-facade-dynamic-request-support_ required.
@@ -204,6 +221,7 @@ interface TimeoutsConfiguringRetryingHttpClientBuilder :
     ): TimeoutsImmutableRetryingHttpClientBuilder
 
     fun setWholeRequestTimeout(timeout: Duration): TimeoutsImmutableRetryingHttpClientBuilder
+
     /**
      * [jfix-armeria-dynamic-request](https://github.com/ru-fix/jfix-armeria) dependency
      * OR Gradle capability _jfix-armeria-facade-dynamic-request-support_ required.
@@ -214,6 +232,7 @@ interface TimeoutsConfiguringRetryingHttpClientBuilder :
         eachAttemptTimeout: Duration,
         wholeRequestTimeout: Duration
     ): TimeoutsImmutableRetryingHttpClientBuilder
+
     /**
      * [jfix-armeria-dynamic-request](https://github.com/ru-fix/jfix-armeria) dependency
      * OR Gradle capability _jfix-armeria-facade-dynamic-request-support_ required.
