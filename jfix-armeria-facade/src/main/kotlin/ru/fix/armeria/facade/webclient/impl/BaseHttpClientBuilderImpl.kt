@@ -1,6 +1,5 @@
 package ru.fix.armeria.facade.webclient.impl
 
-import ru.fix.armeria.facade.Either
 import com.linecorp.armeria.client.*
 import com.linecorp.armeria.client.endpoint.EndpointGroup
 import com.linecorp.armeria.client.endpoint.EndpointSelectionStrategy
@@ -14,6 +13,7 @@ import ru.fix.armeria.aggregating.profiler.ProfiledConnectionPoolListener
 import ru.fix.armeria.commons.AutoCloseableHttpClient
 import ru.fix.armeria.dynamic.request.endpoint.DynamicAddressEndpoints
 import ru.fix.armeria.dynamic.request.endpoint.SocketAddress
+import ru.fix.armeria.facade.Either
 import ru.fix.armeria.facade.retrofit.RetrofitHttpClientBuilder
 import ru.fix.armeria.facade.retrofit.impl.RetrofitHttpClientBuilderImpl
 import ru.fix.armeria.facade.webclient.BaseHttpClientBuilder
@@ -35,6 +35,7 @@ internal data class BaseHttpClientBuilderState(
         null
     },
     val ioThreadsCount: Int? = null,
+    val clientFactory: ClientFactory? = null,
     val clientFactoryBuilder: () -> ClientFactoryBuilder = { ClientFactory.builder() },
     val clientFactoryBuilderCustomizer: ClientFactoryBuilder.() -> ClientFactoryBuilder = { this },
     val clientOptionsBuilder: () -> ClientOptionsBuilder = { ClientOptions.builder() },
@@ -158,19 +159,24 @@ internal abstract class BaseHttpClientBuilderImpl<out HttpClientBuilderT : BaseH
             else -> WebClient.builder()
         }
 
-        // build ClientFactory
-        var clientFactoryBuilder: ClientFactoryBuilder = baseBuilderState.clientFactoryBuilder()
-        clientFactoryBuilder = clientFactoryBuilder.workerGroup(
-            EventLoopGroups.newEventLoopGroup(
-                baseBuilderState.ioThreadsCount ?: Flags.numCommonWorkers(),
-                "$clientName-eventloop"
-            ),
-            true
-        )
-        val clientFactoryBuilderCustomizer = baseBuilderState.clientFactoryBuilderCustomizer
-        val clientFactory = clientFactoryBuilder
-            .clientFactoryBuilderCustomizer()
-            .build()
+        val clientFactory: ClientFactory = if (baseBuilderState.clientFactory == null) {
+            // build ClientFactory
+            var clientFactoryBuilder: ClientFactoryBuilder = baseBuilderState.clientFactoryBuilder()
+            clientFactoryBuilder = clientFactoryBuilder.workerGroup(
+                EventLoopGroups.newEventLoopGroup(
+                    baseBuilderState.ioThreadsCount ?: Flags.numCommonWorkers(),
+                    "$clientName-eventloop"
+                ),
+                true
+            )
+            val clientFactoryBuilderCustomizer = baseBuilderState.clientFactoryBuilderCustomizer
+            clientFactoryBuilder
+                .clientFactoryBuilderCustomizer()
+                .build()
+        } else {
+            // use passed ClientFactory
+            baseBuilderState.clientFactory
+        }
 
 
         // build ClientOptions
@@ -234,6 +240,10 @@ internal abstract class BaseHttpClientBuilderImpl<out HttpClientBuilderT : BaseH
 
     override fun setSessionProtocol(sessionProtocol: SessionProtocol): HttpClientBuilderT = copyOfThisBuilder(
         baseBuilderState.copy(sessionProtocol = sessionProtocol)
+    )
+
+    override fun setClientFactory(clientFactory: ClientFactory): HttpClientBuilderT = copyOfThisBuilder(
+        baseBuilderState.copy(clientFactory = clientFactory)
     )
 
     override fun customizeArmeriaClientFactoryBuilder(
