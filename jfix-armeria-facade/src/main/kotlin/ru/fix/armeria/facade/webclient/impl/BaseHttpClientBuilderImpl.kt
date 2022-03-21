@@ -159,8 +159,7 @@ internal abstract class BaseHttpClientBuilderImpl<out HttpClientBuilderT : BaseH
             else -> WebClient.builder()
         }
 
-        val clientFactory: ClientFactory
-        if (baseBuilderState.clientFactory == null) {
+        val clientFactory: ClientFactory = if (baseBuilderState.clientFactory == null) {
             // build ClientFactory
             var clientFactoryBuilder: ClientFactoryBuilder = baseBuilderState.clientFactoryBuilder()
             clientFactoryBuilder = clientFactoryBuilder.workerGroup(
@@ -171,12 +170,12 @@ internal abstract class BaseHttpClientBuilderImpl<out HttpClientBuilderT : BaseH
                 true
             )
             val clientFactoryBuilderCustomizer = baseBuilderState.clientFactoryBuilderCustomizer
-            clientFactory = clientFactoryBuilder
+            clientFactoryBuilder
                 .clientFactoryBuilderCustomizer()
                 .build()
         } else {
             // use passed ClientFactory
-            clientFactory = baseBuilderState.clientFactory
+            baseBuilderState.clientFactory
         }
 
 

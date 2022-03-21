@@ -66,8 +66,8 @@ interface BaseHttpClientBuilder<out HttpClientBuilderT : BaseHttpClientBuilder<H
 
     /**
      * ioThreadsCount - the number of event loop threads
-     * if argument [count] is passed, it will be used - otherwise used the default number of common worker group threads
-     * in [buildArmeriaWebClient]
+     * if argument [count] is passed, it will be used - otherwise used [com.linecorp.armeria.common.Flags#numCommonWorkers]
+     * when calling [buildArmeriaWebClient]
      */
     fun setIoThreadsCount(count: Int): HttpClientBuilderT
 
@@ -109,7 +109,8 @@ interface BaseHttpClientBuilder<out HttpClientBuilderT : BaseHttpClientBuilder<H
     fun setSessionProtocol(sessionProtocol: SessionProtocol): HttpClientBuilderT
 
     /**
-     * if argument [clientFactory] is passed, it will be used - otherwise it will build in method [buildArmeriaWebClient]
+     * if argument [clientFactory] is passed, it will be used - otherwise new [ClientFactory] will be built when calling
+     * [buildArmeriaWebClient]
      */
     fun setClientFactory(clientFactory: ClientFactory): HttpClientBuilderT
 
