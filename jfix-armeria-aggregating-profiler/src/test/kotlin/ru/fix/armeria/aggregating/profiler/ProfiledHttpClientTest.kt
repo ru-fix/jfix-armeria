@@ -50,7 +50,7 @@ import java.time.Duration
 import java.util.concurrent.TimeUnit
 import java.util.stream.Stream
 import kotlin.time.ExperimentalTime
-import kotlin.time.seconds
+import kotlin.time.toDuration
 
 @ExperimentalTime
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -97,7 +97,7 @@ internal class ProfiledHttpClientTest {
 
             client.get(path).aggregate().await()
 
-            eventually(1.seconds) {
+            eventually(1.toDuration(TimeUnit.SECONDS)) {
                 assertSoftly(profilerReporter.buildReportAndReset()) {
                     profiledCallReportWithNameEnding(Metrics.HTTP_CONNECT) should {
                         it.shouldNotBeNull()
@@ -312,7 +312,7 @@ internal class ProfiledHttpClientTest {
                     logger.error(e)
                 }
 
-                eventually(1.seconds) {
+                eventually(1.toDuration(TimeUnit.SECONDS)) {
                     assertSoftly(profilerReporter.buildReportAndReset()) {
                         profiledCallReportWithNameEnding(Metrics.HTTP_ERROR) should {
                             it.shouldNotBeNull()
@@ -344,7 +344,7 @@ internal class ProfiledHttpClientTest {
             logger.error(e)
         }
 
-        eventually(1.seconds) {
+        eventually(1.toDuration(TimeUnit.SECONDS)) {
             assertSoftly(profilerReporter.buildReportAndReset()) {
                 profiledCallReportWithNameEnding(Metrics.HTTP_CONNECT) shouldNotBe null
                 profiledCallReportWithNameEnding(Metrics.HTTP_CONNECTED) shouldBe null
@@ -374,7 +374,7 @@ internal class ProfiledHttpClientTest {
             logger.error(e)
         }
 
-        eventually(1.seconds) {
+        eventually(1.toDuration(TimeUnit.SECONDS)) {
             val report = profilerReporter.buildReportAndReset { metric, _ ->
                 metric.name == Metrics.HTTP_CONNECT
             }
@@ -392,7 +392,7 @@ internal class ProfiledHttpClientTest {
                 )
             }
         }
-        eventually(1.seconds) {
+        eventually(1.toDuration(TimeUnit.SECONDS)) {
             val report = profilerReporter.buildReportAndReset { metric, _ ->
                 metric.name == Metrics.HTTP_CONNECTED
             }
@@ -411,7 +411,7 @@ internal class ProfiledHttpClientTest {
                 )
             }
         }
-        eventually(1.seconds) {
+        eventually(1.toDuration(TimeUnit.SECONDS)) {
             val report = profilerReporter.buildReportAndReset { metric, _ ->
                 metric.name == Metrics.HTTP_ERROR
             }
@@ -434,7 +434,7 @@ internal class ProfiledHttpClientTest {
             logger.error(e)
         }
 
-        eventually(1.seconds) {
+        eventually(1.toDuration(TimeUnit.SECONDS)) {
             assertSoftly(profilerReporter.buildReportAndReset()) {
                 profiledCallReportWithNameEnding(Metrics.HTTP_CONNECT) should {
                     it.shouldNotBeNull()
@@ -503,7 +503,7 @@ internal class ProfiledHttpClientTest {
     }
 
     private suspend fun ProfilerReporter.assertMetricPresentAndGetItsPathLabel(metricName: String) =
-        eventually(1.seconds) {
+        eventually(1.toDuration(TimeUnit.SECONDS)) {
             val report = buildReportAndReset { metric, _ ->
                 metric.name == metricName
             }
@@ -551,7 +551,7 @@ internal class ProfiledHttpClientTest {
 
             client.get("/").aggregate().await()
 
-            eventually(1.seconds) {
+            eventually(1.toDuration(TimeUnit.SECONDS)) {
                 profilerReporter.buildReportAndReset { metric, _ -> metric.name == Metrics.HTTP_CONNECT } should { report ->
                     logger.trace { "Report: $report" }
                     report.profiledCallReportsWithNameEnding(Metrics.HTTP_CONNECT) should { callReports ->
@@ -584,7 +584,7 @@ internal class ProfiledHttpClientTest {
                     }
                 }
             }
-            eventually(1.seconds) {
+            eventually(1.toDuration(TimeUnit.SECONDS)) {
                 profilerReporter.buildReportAndReset { metric, _ -> metric.name == Metrics.HTTP_CONNECTED } should { report ->
                     logger.trace { "Report: $report" }
                     report.profiledCallReportWithNameEnding(Metrics.HTTP_CONNECTED) should {
@@ -605,10 +605,10 @@ internal class ProfiledHttpClientTest {
                     }
                 }
             }
-            eventually(1.seconds) {
+            eventually(1.toDuration(TimeUnit.SECONDS)) {
                 val report = profilerReporter.buildReportAndReset { metric, _ ->
                     metric.name == Metrics.HTTP_ERROR &&
-                        metric.tags[MetricTags.ERROR_TYPE]?.let { it == "connect_refused" } ?: false
+                            metric.tags[MetricTags.ERROR_TYPE]?.let { it == "connect_refused" } ?: false
                 }
                 logger.trace { "Report: $report" }
                 report.profiledCallReportWithNameEnding(Metrics.HTTP_ERROR) should {
@@ -627,10 +627,10 @@ internal class ProfiledHttpClientTest {
                     )
                 }
             }
-            eventually(1.seconds) {
+            eventually(1.toDuration(TimeUnit.SECONDS)) {
                 val report = profilerReporter.buildReportAndReset { metric, _ ->
                     metric.name == Metrics.HTTP_ERROR &&
-                        metric.tags[MetricTags.ERROR_TYPE]?.let { it == "invalid_status" } ?: false
+                            metric.tags[MetricTags.ERROR_TYPE]?.let { it == "invalid_status" } ?: false
                 }
                 logger.trace { "Report: $report" }
                 report.profiledCallReportWithNameEnding(Metrics.HTTP_ERROR) should {
@@ -651,7 +651,7 @@ internal class ProfiledHttpClientTest {
                     )
                 }
             }
-            eventually(1.seconds) {
+            eventually(1.toDuration(TimeUnit.SECONDS)) {
                 profilerReporter.buildReportAndReset { metric, _ -> metric.name == Metrics.HTTP_SUCCESS } should { report ->
                     logger.trace { "Report: $report" }
                     report.profiledCallReportWithNameEnding(Metrics.HTTP_SUCCESS) should {
@@ -728,55 +728,62 @@ internal class ProfiledHttpClientTest {
 
             client.get("/").aggregate().await()
 
-            eventually(1.seconds) {
-                assertSoftly(profilerReporter.buildReportAndReset()) {
-                    logger.trace { "Report: $this" }
-                    profiledCallReportWithNameEnding(Metrics.HTTP_CONNECT) should {
-                        it.shouldNotBeNull()
+            eventually(2.toDuration(TimeUnit.SECONDS)) {
+                val report = profilerReporter.buildReportAndReset { metric, _ -> metric.name == Metrics.HTTP_CONNECT }
+                logger.trace { "Report: $this" }
+                report.profiledCallReportWithNameEnding(Metrics.HTTP_CONNECT) should {
+                    it.shouldNotBeNull()
 
-                        it.stopSum shouldBe 1
-                        it.identity.tags shouldContainExactly mapOf(
-                            MetricTags.PATH to "/",
-                            MetricTags.METHOD to "GET",
-                            MetricTags.PROTOCOL to "http",
-                            MetricTags.IS_MULTIPLEX_PROTOCOL to false.toString(),
-                            MetricTags.REMOTE_ADDRESS to LocalHost.IP.value,
-                            MetricTags.REMOTE_HOST to LocalHost.HOSTNAME.value,
-                            MetricTags.REMOTE_PORT to expectedProfiledMockServer.httpPort().toString()
-                        )
-                    }
-                    profiledCallReportWithNameEnding(Metrics.HTTP_CONNECTED) should {
-                        it.shouldNotBeNull()
+                    it.stopSum shouldBe 1
+                    it.identity.tags shouldContainExactly mapOf(
+                        MetricTags.PATH to "/",
+                        MetricTags.METHOD to "GET",
+                        MetricTags.PROTOCOL to "http",
+                        MetricTags.IS_MULTIPLEX_PROTOCOL to false.toString(),
+                        MetricTags.REMOTE_ADDRESS to LocalHost.IP.value,
+                        MetricTags.REMOTE_HOST to LocalHost.HOSTNAME.value,
+                        MetricTags.REMOTE_PORT to expectedProfiledMockServer.httpPort().toString()
+                    )
+                }
+            }
+            eventually(2.toDuration(TimeUnit.SECONDS)) {
+                val report = profilerReporter.buildReportAndReset { metric, _ -> metric.name == Metrics.HTTP_CONNECTED }
+                logger.trace { "Report: $this" }
+                report.profiledCallReportWithNameEnding(Metrics.HTTP_CONNECTED) should {
+                    it.shouldNotBeNull()
 
-                        it.stopSum shouldBe 1
-                        it.identity.tags shouldContainExactly mapOf(
-                            MetricTags.PATH to "/",
-                            MetricTags.METHOD to "GET",
-                            MetricTags.PROTOCOL to "h2c",
-                            MetricTags.IS_MULTIPLEX_PROTOCOL to true.toString(),
-                            MetricTags.CHANNEL_CLASS to EPOLL_SOCKET_CHANNEL,
-                            MetricTags.REMOTE_ADDRESS to LocalHost.IP.value,
-                            MetricTags.REMOTE_HOST to LocalHost.HOSTNAME.value,
-                            MetricTags.REMOTE_PORT to expectedProfiledMockServer.httpPort().toString()
-                        )
-                    }
-                    profiledCallReportWithNameEnding(Metrics.HTTP_SUCCESS) should {
-                        it.shouldNotBeNull()
+                    it.stopSum shouldBe 1
+                    it.identity.tags shouldContainExactly mapOf(
+                        MetricTags.PATH to "/",
+                        MetricTags.METHOD to "GET",
+                        MetricTags.PROTOCOL to "h2c",
+                        MetricTags.IS_MULTIPLEX_PROTOCOL to true.toString(),
+                        MetricTags.CHANNEL_CLASS to EPOLL_SOCKET_CHANNEL,
+                        MetricTags.REMOTE_ADDRESS to LocalHost.IP.value,
+                        MetricTags.REMOTE_HOST to LocalHost.HOSTNAME.value,
+                        MetricTags.REMOTE_PORT to expectedProfiledMockServer.httpPort().toString()
+                    )
+                }
+            }
+            eventually(2.toDuration(TimeUnit.SECONDS)) {
+                val report = profilerReporter.buildReportAndReset { metric, _ -> metric.name == Metrics.HTTP_SUCCESS }
+                logger.trace { "Report: $this" }
+                report.profiledCallReportWithNameEnding(Metrics.HTTP_SUCCESS) should {
+                    it.shouldNotBeNull()
 
-                        it.stopSum shouldBe 1
-                        it.identity.tags shouldContainExactly mapOf(
-                            MetricTags.PATH to "/",
-                            MetricTags.METHOD to "GET",
-                            MetricTags.PROTOCOL to "h2c",
-                            MetricTags.IS_MULTIPLEX_PROTOCOL to true.toString(),
-                            MetricTags.CHANNEL_CLASS to EPOLL_SOCKET_CHANNEL,
-                            MetricTags.REMOTE_ADDRESS to LocalHost.IP.value,
-                            MetricTags.REMOTE_HOST to LocalHost.HOSTNAME.value,
-                            MetricTags.REMOTE_PORT to expectedProfiledMockServer.httpPort().toString(),
-                            MetricTags.RESPONSE_STATUS to "200"
-                        )
-                        it.latencyMax shouldBeGreaterThan firstRequestDelayMillis + lastRequestDelayMillis
-                    }
+                    it.stopSum shouldBe 1
+                    it.identity.tags shouldContainExactly mapOf(
+                        MetricTags.PATH to "/",
+                        MetricTags.METHOD to "GET",
+                        MetricTags.PROTOCOL to "h2c",
+                        MetricTags.IS_MULTIPLEX_PROTOCOL to true.toString(),
+                        MetricTags.CHANNEL_CLASS to EPOLL_SOCKET_CHANNEL,
+                        MetricTags.REMOTE_ADDRESS to LocalHost.IP.value,
+                        MetricTags.REMOTE_HOST to LocalHost.HOSTNAME.value,
+                        MetricTags.REMOTE_PORT to expectedProfiledMockServer.httpPort().toString(),
+                        MetricTags.RESPONSE_STATUS to "200"
+                    )
+                    it.latencyMax shouldBeGreaterThan firstRequestDelayMillis + lastRequestDelayMillis
                 }
             }
         } finally {
@@ -839,7 +846,7 @@ internal class ProfiledHttpClientTest {
 
             client.get("/").aggregate().await()
 
-            eventually(1.seconds) {
+            eventually(1.toDuration(TimeUnit.SECONDS)) {
                 val report = profilerReporter.buildReportAndReset { metric, _ -> metric.name == Metrics.HTTP_CONNECT }
                 report.profiledCallReportWithNameEnding(Metrics.HTTP_CONNECT) should {
                     it.shouldNotBeNull()
@@ -856,7 +863,7 @@ internal class ProfiledHttpClientTest {
                     )
                 }
             }
-            eventually(1.seconds) {
+            eventually(1.toDuration(TimeUnit.SECONDS)) {
                 val report = profilerReporter.buildReportAndReset { metric, _ ->
                     metric.name == Metrics.HTTP_CONNECTED
                 }
@@ -876,7 +883,7 @@ internal class ProfiledHttpClientTest {
                     )
                 }
             }
-            eventually(1.seconds) {
+            eventually(1.toDuration(TimeUnit.SECONDS)) {
                 val report = profilerReporter.buildReportAndReset { metric, _ ->
                     metric.name == Metrics.HTTP_ERROR
                 }

@@ -2,20 +2,20 @@ object Vers {
 
     // Gradle plugins
     const val gradle_release_plugin = "1.4.3"
-    const val dokkav_plugin = "0.10.1"
+    const val dokka_plugin = "0.10.1"
     const val asciidoctor_plugin = "1.5.9.2"
-    const val nexus_staging_plugin = "0.21.2"
-    const val nexus_publish_plugin = "0.4.0"
-    const val docker_plugin = "6.6.1"
+    const val nexus_staging_plugin = "0.30.0"
+    const val old_nexus_publish_plugin = "0.4.0"
+    const val docker_plugin = "9.0.1"
 
     // Kotlin Dependencies
-    const val kotlin = "1.3.72"
-    const val kotlinx_coroutines = "1.3.8"
+    const val kotlin = "1.5.32"
+    const val kotlinx_coroutines = "1.5.2"
 
     // JFix components
     const val aggregating_profiler = "1.6.6"
     const val dynamic_property = "2.0.8"
-    const val jfix_stdlib = "3.0.15"
+    const val jfix_stdlib = "3.0.17"
 
     // Armeria and Retrofit
     const val armeria = "1.13.2"
@@ -28,25 +28,25 @@ object Vers {
     const val kotlin_logging = "2.0.3"
 
     // Spring
-    const val spring_boot = "2.5.6"
+    const val spring_boot = "2.7.6"
 
     // Testing
-    const val junit = "5.7.1"
-    const val kotest = "4.3.2"
-    const val mockk = "1.10.2"
+    const val junit = "5.9.1"
+    const val kotest = "4.6.4"
+    const val mockk = "1.12.2"
     const val corounit = "1.0.34"
-    const val testcontainers = "1.16.2"
+    const val testcontainers = "1.17.6"
 }
 
 object Libs {
 
     // Gradle plugins
     const val gradle_release_plugin = "ru.fix:gradle-release-plugin:${Vers.gradle_release_plugin}"
-    const val dokka_plugin = "org.jetbrains.dokka:dokka-gradle-plugin:${Vers.dokkav_plugin}"
+    const val dokka_plugin = "org.jetbrains.dokka:dokka-gradle-plugin:${Vers.dokka_plugin}"
     const val asciidoctor_plugin_id = "org.asciidoctor.convert"
     const val asciidoctor_plugin = "org.asciidoctor:asciidoctor-gradle-plugin:${Vers.asciidoctor_plugin}"
     const val nexus_staging_plugin_id = "io.codearte.nexus-staging"
-    const val nexus_publish_plugin_id = "de.marcphilipp.nexus-publish"
+    const val old_nexus_publish_plugin_id = "de.marcphilipp.nexus-publish"
     const val spring_boot_plugin_id = "org.springframework.boot"
     const val docker_spring_boot_plugin_id = "com.bmuschko.docker-spring-boot-application"
 
@@ -78,8 +78,8 @@ object Libs {
 
     // Retrofit
     const val retrofit2_converter_jackson = "com.squareup.retrofit2:converter-jackson:${Vers.retrofit}"
-    const val jackson_databind = "com.fasterxml.jackson.core:jackson-databind:2.10.2"
-    const val jackson_kotlin = "com.fasterxml.jackson.module:jackson-module-kotlin:2.10.2"
+    const val jackson_databind = "com.fasterxml.jackson.core:jackson-databind:${Vers.jackson}"
+    const val jackson_kotlin = "com.fasterxml.jackson.module:jackson-module-kotlin:${Vers.jackson}"
     const val retrofit2_converter_scalars = "com.squareup.retrofit2:converter-scalars:${Vers.retrofit}"
 
     // Spring
@@ -92,7 +92,7 @@ object Libs {
     const val junit_engine = "org.junit.jupiter:junit-jupiter-engine:${Vers.junit}"
     const val armeria_junit5 = "com.linecorp.armeria:armeria-junit5:${Vers.armeria}"
     //  Kotest
-    const val kotest_assertions_core = "io.kotest:kotest-assertions-core:${Vers.kotest}"
+    const val kotest_assertions_core_jvm = "io.kotest:kotest-assertions-core-jvm:${Vers.kotest}"
     const val kotest_assertions_json = "io.kotest:kotest-assertions-json:${Vers.kotest}"
     //  Corounit
     const val corounit_engine = "ru.fix:corounit-engine:${Vers.corounit}"
