@@ -36,7 +36,7 @@ internal class DynamicRequestOptionsClientTest {
 
     @Test
     suspend fun `WHEN read timeout changed THEN new value applied to subsequent requests`() {
-        val readTimeoutProperty = AtomicProperty(2.seconds)
+        val readTimeoutProperty = AtomicProperty(5.seconds)
         val client = WebClient.builder(mockServer.httpUri())
             .decorator(
                 DynamicRequestOptionsClient.newHttpDecoratorWithReadTimeout(readTimeoutProperty.map { it.j })
@@ -48,13 +48,11 @@ internal class DynamicRequestOptionsClientTest {
         // no timeout happened
         mockServer.enqueue(delayedResponseCreator)
         val expectedToNotFailRequest = client.get("/")
-        // give request time to start befor changing property
-        delay(100.milliseconds.j)
-        // change property and now timeout must take place on next request
-        readTimeoutProperty.set(500.milliseconds)
         expectedToNotFailRequest.aggregate().await() should {
             it.status() shouldBe HttpStatus.OK
         }
+        // change property and now timeout must take place on next request
+        readTimeoutProperty.set(500.milliseconds)
         mockServer.enqueue(delayedResponseCreator)
         shouldThrow<ResponseTimeoutException> {
             client.get("/").aggregate().await()

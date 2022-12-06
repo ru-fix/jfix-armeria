@@ -28,7 +28,7 @@ plugins {
     kotlin("jvm") version Vers.kotlin apply false
     signing
     `maven-publish`
-    id(Libs.nexus_publish_plugin_id) version Vers.nexus_publish_plugin apply false
+    id(Libs.old_nexus_publish_plugin_id) version Vers.old_nexus_publish_plugin apply false
     id(Libs.nexus_staging_plugin_id) version Vers.nexus_staging_plugin
     id(Libs.asciidoctor_plugin_id) version Vers.asciidoctor_plugin
     id(Libs.spring_boot_plugin_id) version Vers.spring_boot apply false
@@ -77,7 +77,7 @@ subprojects {
         plugin("signing")
         plugin("java")
         plugin("org.jetbrains.dokka")
-        plugin(Libs.nexus_publish_plugin_id)
+        plugin(Libs.old_nexus_publish_plugin_id)
     }
 
     repositories {
