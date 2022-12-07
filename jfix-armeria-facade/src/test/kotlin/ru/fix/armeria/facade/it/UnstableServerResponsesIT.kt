@@ -22,10 +22,8 @@ import ru.fix.armeria.facade.HttpClients
 import ru.fix.armeria.facade.Metrics
 import ru.fix.armeria.facade.ProfilerTestUtils.profiledCallReportWithName
 import ru.fix.dynamic.property.api.DynamicProperty
-import kotlin.time.ExperimentalTime
-import kotlin.time.milliseconds
-import kotlin.time.minutes
-import kotlin.time.seconds
+import java.util.concurrent.TimeUnit
+import kotlin.time.*
 
 @ExperimentalTime
 @IntegrationTest
@@ -52,8 +50,8 @@ class UnstableServerResponsesIT {
                             .withRetriesOn503AndRetriableError(3)
                             .withCustomResponseTimeouts()
                             .setResponseTimeouts(
-                                eachAttemptTimeout = 2.minutes.j,
-                                wholeRequestTimeout = 2.minutes.j
+                                eachAttemptTimeout = 2.toDuration(TimeUnit.MINUTES).j,
+                                wholeRequestTimeout = 2.toDuration(TimeUnit.MINUTES).j
                             )
                             .enableEachAttemptProfiling(profiler)
                             .buildArmeriaWebClient()
@@ -75,7 +73,7 @@ class UnstableServerResponsesIT {
                             .setIoThreadsCount(1)
                             .enableConnectionsProfiling(profiler)
                             .withoutRetries()
-                            .setResponseTimeout(2.minutes.j)
+                            .setResponseTimeout(2.toDuration(TimeUnit.MINUTES).j)
                             .enableRequestsProfiling(profiler)
                             .enableRetrofitSupport()
                             .enableNamedBlockingResponseReadingExecutor(
@@ -97,18 +95,21 @@ class UnstableServerResponsesIT {
 
                         val requestsCount = 1_000
                         val bandwidthInKbPerSec = 10
-                        val expectedDelay = (ONE_MB_IN_BYTES / (bandwidthInKbPerSec * ONE_KB_IN_BYTES)).seconds
-                        val expectedDelayMs = expectedDelay.toLongMilliseconds()
+                        val expectedDelay =
+                            Duration.seconds((ONE_MB_IN_BYTES / (bandwidthInKbPerSec * ONE_KB_IN_BYTES)))
+                        val expectedDelayMs = expectedDelay.inWholeMilliseconds
                         val responsePartSizeInBytes = bandwidthInKbPerSec * ONE_KB_IN_BYTES / 10
                         val responsePartsCount = ONE_MB_IN_BYTES / responsePartSizeInBytes
-                        val delayBetweenResponsePartsMs = 1.seconds.toLongMilliseconds() / 10
-                        logger.info { """Launching $requestsCount requests for 1 megabyte responses with:
+                        val delayBetweenResponsePartsMs = 1.toDuration(TimeUnit.SECONDS).inWholeMilliseconds / 10
+                        logger.info {
+                            """Launching $requestsCount requests for 1 megabyte responses with:
                             | - $bandwidthInKbPerSec kb/sec bandwidth
                             | - $expectedDelay expected delay
                             | - response part size of $responsePartSizeInBytes bytes
                             | - $responsePartsCount response parts
                             | - ${delayBetweenResponsePartsMs}ms delay between response parts
-                            | """.trimMargin() }
+                            | """.trimMargin()
+                        }
                         (1..requestsCount).map {
                             launch {
                                 testApi.delayedParts(
@@ -121,7 +122,7 @@ class UnstableServerResponsesIT {
 
                         logger.info { "Checking metrics..." }
                         delay(100)
-                        eventually(2.seconds) {
+                        eventually(2.toDuration(TimeUnit.SECONDS)) {
                             val metricName = "${clientName}${expectedMetricSuffix?.let { ".$it" } ?: ""}.http"
                             val report = reporter.buildReportAndReset { metric, _ ->
                                 metric.name == metricName
@@ -159,8 +160,8 @@ class UnstableServerResponsesIT {
                         .withRetriesOn503AndRetriableError(3)
                         .withCustomResponseTimeouts()
                         .setResponseTimeouts(
-                            eachAttemptTimeout = 15.seconds.j,
-                            wholeRequestTimeout = 15.seconds.j
+                            eachAttemptTimeout = 15.toDuration(TimeUnit.SECONDS).j,
+                            wholeRequestTimeout = 15.toDuration(TimeUnit.SECONDS).j
                         )
                         .enableEachAttemptProfiling(profiler)
                         .buildArmeriaWebClient()
@@ -180,15 +181,15 @@ class UnstableServerResponsesIT {
                         .withRetriesOn503AndRetriableError(3)
                         .withCustomResponseTimeouts()
                         .setResponseTimeouts(
-                            eachAttemptTimeout = 15.seconds.j,
-                            wholeRequestTimeout = 15.seconds.j
+                            eachAttemptTimeout = 15.toDuration(TimeUnit.SECONDS).j,
+                            wholeRequestTimeout = 15.toDuration(TimeUnit.SECONDS).j
                         )
                         .enableEachAttemptProfiling(profiler)
                         .enableRetrofitSupport()
                         .enableNamedBlockingResponseReadingExecutor(
                             DynamicProperty.of(1),
                             profiler,
-                            DynamicProperty.of(10.seconds.j)
+                            DynamicProperty.of(10.toDuration(TimeUnit.SECONDS).j)
                         )
                         .addConverterFactory(ScalarsConverterFactory.create())
                         .buildRetrofit()
@@ -199,7 +200,7 @@ class UnstableServerResponsesIT {
         UnstableServerTestCaseCreator::testCaseName
     ) { testCaseCreator: UnstableServerTestCaseCreator ->
         runBlocking {
-            withTimeout(30.seconds.j) {
+            withTimeout(30.toDuration(TimeUnit.SECONDS).j) {
                 val (clientName, expectedMetricSuffix, reporter, testApi, autoCloseableResource) = testCaseCreator()
 
                 try {
@@ -215,8 +216,8 @@ class UnstableServerResponsesIT {
                         }.joinAll()
 
                         val slowRequestsCount = 1000
-                        val slowRequestDelay = 10.seconds
-                        val slowRequestDelayMs = slowRequestDelay.toLongMilliseconds()
+                        val slowRequestDelay = 10.toDuration(TimeUnit.SECONDS)
+                        val slowRequestDelayMs = slowRequestDelay.inWholeMilliseconds
                         logger.info { "Submitting $slowRequestsCount slow requests with delay $slowRequestDelay..." }
                         val slowDeferredResults = (1..slowRequestsCount).map {
                             async {
@@ -226,8 +227,8 @@ class UnstableServerResponsesIT {
 
                         try {
                             val fastRequestsCount = 100
-                            val fastRequestDelay = 500.milliseconds
-                            val fastRequestDelayMs = fastRequestDelay.toLongMilliseconds()
+                            val fastRequestDelay = 500.toDuration(TimeUnit.MILLISECONDS)
+                            val fastRequestDelayMs = fastRequestDelay.inWholeMilliseconds
                             logger.info { "Performing $fastRequestsCount fast requests with delay $fastRequestDelay..." }
                             (1..fastRequestsCount).map {
                                 async {
@@ -237,7 +238,7 @@ class UnstableServerResponsesIT {
 
                             logger.info { "Checking metrics..." }
                             delay(100)
-                            eventually(2.seconds) {
+                            eventually(2.toDuration(TimeUnit.SECONDS)) {
                                 val metricName = "${clientName}${expectedMetricSuffix?.let { ".$it" } ?: ""}.http"
                                 val report = reporter.buildReportAndReset { metric, _ ->
                                     metric.name == metricName

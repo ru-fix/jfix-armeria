@@ -5,19 +5,17 @@ plugins {
     kotlin("jvm")
 }
 
-java(
-    Action {
-        val main by sourceSets
-        for (facadeFeature in JFixArmeriaFacadeFeatures.values()) {
-            registerFeature(facadeFeature.featureName) {
-                usingSourceSet(main)
-                for (capabilityName in facadeFeature.capabilitiesNames) {
-                    capability(group.toString(), capabilityName, version.toString())
-                }
+java {
+    val main by sourceSets
+    for (facadeFeature in JFixArmeriaFacadeFeatures.values()) {
+        registerFeature(facadeFeature.featureName) {
+            usingSourceSet(main)
+            for (capabilityName in facadeFeature.capabilitiesNames) {
+                capability(group.toString(), capabilityName, version.toString())
             }
         }
     }
-)
+}
 
 dependencies {
     // Kotlin
@@ -56,7 +54,7 @@ dependencies {
     testRuntimeOnly(Libs.junit_engine)
     testRuntimeOnly(Libs.corounit_engine)
     //  Kotest
-    testImplementation(Libs.kotest_assertions_core)
+    testImplementation(Libs.kotest_assertions_core_jvm)
     testImplementation(Libs.kotest_assertions_json)
     //  Test Logging
     testRuntimeOnly(Libs.log4j_core)
@@ -67,22 +65,16 @@ dependencies {
     testImplementation(Libs.armeria_junit5)
     //  Retrofit integration
     testImplementation(Libs.retrofit2_converter_jackson)
-    testRuntime(
-        Libs.jackson_databind,
-        Action {
-            version {
-                strictly(Vers.jackson)
-            }
+    testRuntimeOnly(Libs.jackson_databind) {
+        version {
+            strictly(Vers.jackson)
         }
-    )
-    testRuntime(
-        Libs.jackson_kotlin,
-        Action {
-            version {
-                strictly(Vers.jackson)
-            }
+    }
+    testRuntimeOnly(Libs.jackson_kotlin) {
+        version {
+            strictly(Vers.jackson)
         }
-    )
+    }
     testImplementation(Libs.retrofit2_converter_scalars)
     //  TestContainers
     testImplementation(Libs.testcontainers)

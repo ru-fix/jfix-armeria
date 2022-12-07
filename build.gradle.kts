@@ -54,15 +54,13 @@ val signingKeyId by envConfig()
 val signingPassword by envConfig()
 val signingSecretKeyRingFile by envConfig()
 
-nexusStaging(
-    Action {
-        packageGroup = ProjectGroup
-        username = "$repositoryUser"
-        password = "$repositoryPassword"
-        numberOfRetries = 50
-        delayBetweenRetriesInMillis = 3_000
-    }
-)
+nexusStaging {
+    packageGroup = ProjectGroup
+    username = "$repositoryUser"
+    password = "$repositoryPassword"
+    numberOfRetries = 50
+    delayBetweenRetriesInMillis = 3_000
+}
 
 apply {
     plugin("ru.fix.gradle.release")
@@ -112,17 +110,13 @@ subprojects {
     }
 
     configure<NexusPublishExtension> {
-        repositories(
-            Action {
-                sonatype(
-                    Action {
-                        username.set("$repositoryUser")
-                        password.set("$repositoryPassword")
-                        useStaging.set(true)
-                    }
-                )
+        repositories {
+            sonatype {
+                username.set("$repositoryUser")
+                password.set("$repositoryPassword")
+                useStaging.set(true)
             }
-        )
+        }
         clientTimeout.set(Duration.of(4, ChronoUnit.MINUTES))
         connectTimeout.set(Duration.of(4, ChronoUnit.MINUTES))
     }
@@ -136,57 +130,55 @@ subprojects {
 
     project.afterEvaluate {
         if (project.name.startsWith("jfix-armeria")) {
-            publishing(
-                Action {
+            publishing {
 
-                    publications {
-                        // Internal repository setup
-                        repositories {
-                            maven {
-                                url = uri("$repositoryUrl")
-                                isAllowInsecureProtocol = true
-                                if (url.scheme.startsWith("http", true)) {
-                                    credentials {
-                                        username = "$repositoryUser"
-                                        password = "$repositoryPassword"
-                                    }
-                                }
-                            }
-                        }
-
-                        create<MavenPublication>("maven") {
-                            from(components["java"])
-
-                            artifact(sourcesJar)
-                            artifact(dokkaJar)
-
-                            pom {
-                                name.set("${project.group}:${project.name}")
-                                description.set("https://github.com/ru-fix/")
-                                url.set("https://github.com/ru-fix/${rootProject.name}")
-                                licenses {
-                                    license {
-                                        name.set("The Apache License, Version 2.0")
-                                        url.set("http://www.apache.org/licenses/LICENSE-2.0.txt")
-                                    }
-                                }
-                                developers {
-                                    developer {
-                                        id.set("JFix Team")
-                                        name.set("JFix Team")
-                                        url.set("https://github.com/ru-fix/")
-                                    }
-                                }
-                                scm {
-                                    url.set("https://github.com/ru-fix/${rootProject.name}")
-                                    connection.set("https://github.com/ru-fix/${rootProject.name}.git")
-                                    developerConnection.set("https://github.com/ru-fix/${rootProject.name}.git")
+                publications {
+                    // Internal repository setup
+                    repositories {
+                        maven {
+                            url = uri("$repositoryUrl")
+                            isAllowInsecureProtocol = true
+                            if (url.scheme.startsWith("http", true)) {
+                                credentials {
+                                    username = "$repositoryUser"
+                                    password = "$repositoryPassword"
                                 }
                             }
                         }
                     }
+
+                    create<MavenPublication>("maven") {
+                        from(components["java"])
+
+                        artifact(sourcesJar)
+                        artifact(dokkaJar)
+
+                        pom {
+                            name.set("${project.group}:${project.name}")
+                            description.set("https://github.com/ru-fix/")
+                            url.set("https://github.com/ru-fix/${rootProject.name}")
+                            licenses {
+                                license {
+                                    name.set("The Apache License, Version 2.0")
+                                    url.set("http://www.apache.org/licenses/LICENSE-2.0.txt")
+                                }
+                            }
+                            developers {
+                                developer {
+                                    id.set("JFix Team")
+                                    name.set("JFix Team")
+                                    url.set("https://github.com/ru-fix/")
+                                }
+                            }
+                            scm {
+                                url.set("https://github.com/ru-fix/${rootProject.name}")
+                                connection.set("https://github.com/ru-fix/${rootProject.name}.git")
+                                developerConnection.set("https://github.com/ru-fix/${rootProject.name}.git")
+                            }
+                        }
+                    }
                 }
-            )
+            }
         }
     }
 

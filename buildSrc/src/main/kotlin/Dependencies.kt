@@ -9,8 +9,8 @@ object Vers {
     const val docker_plugin = "9.0.1"
 
     // Kotlin Dependencies
-    const val kotlin = "1.3.72"
-    const val kotlinx_coroutines = "1.3.8"
+    const val kotlin = "1.5.32"
+    const val kotlinx_coroutines = "1.5.2"
 
     // JFix components
     const val aggregating_profiler = "1.6.6"
@@ -28,12 +28,12 @@ object Vers {
     const val kotlin_logging = "2.0.3"
 
     // Spring
-    const val spring_boot = "2.5.6"
+    const val spring_boot = "2.7.6"
 
     // Testing
     const val junit = "5.9.1"
-    const val kotest = "4.3.2"
-    const val mockk = "1.11.0"
+    const val kotest = "4.6.4"
+    const val mockk = "1.12.2"
     const val corounit = "1.0.34"
     const val testcontainers = "1.17.6"
 }
@@ -92,7 +92,7 @@ object Libs {
     const val junit_engine = "org.junit.jupiter:junit-jupiter-engine:${Vers.junit}"
     const val armeria_junit5 = "com.linecorp.armeria:armeria-junit5:${Vers.armeria}"
     //  Kotest
-    const val kotest_assertions_core = "io.kotest:kotest-assertions-core:${Vers.kotest}"
+    const val kotest_assertions_core_jvm = "io.kotest:kotest-assertions-core-jvm:${Vers.kotest}"
     const val kotest_assertions_json = "io.kotest:kotest-assertions-json:${Vers.kotest}"
     //  Corounit
     const val corounit_engine = "ru.fix:corounit-engine:${Vers.corounit}"
