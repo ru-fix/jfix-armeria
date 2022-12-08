@@ -728,55 +728,62 @@ internal class ProfiledHttpClientTest {
 
             client.get("/").aggregate().await()
 
-            eventually(1.toDuration(TimeUnit.SECONDS)) {
-                assertSoftly(profilerReporter.buildReportAndReset()) {
-                    logger.trace { "Report: $this" }
-                    profiledCallReportWithNameEnding(Metrics.HTTP_CONNECT) should {
-                        it.shouldNotBeNull()
+            eventually(2.toDuration(TimeUnit.SECONDS)) {
+                val report = profilerReporter.buildReportAndReset { metric, _ -> metric.name == Metrics.HTTP_CONNECT }
+                logger.trace { "Report: $this" }
+                report.profiledCallReportWithNameEnding(Metrics.HTTP_CONNECT) should {
+                    it.shouldNotBeNull()
 
-                        it.stopSum shouldBe 1
-                        it.identity.tags shouldContainExactly mapOf(
-                            MetricTags.PATH to "/",
-                            MetricTags.METHOD to "GET",
-                            MetricTags.PROTOCOL to "http",
-                            MetricTags.IS_MULTIPLEX_PROTOCOL to false.toString(),
-                            MetricTags.REMOTE_ADDRESS to LocalHost.IP.value,
-                            MetricTags.REMOTE_HOST to LocalHost.HOSTNAME.value,
-                            MetricTags.REMOTE_PORT to expectedProfiledMockServer.httpPort().toString()
-                        )
-                    }
-                    profiledCallReportWithNameEnding(Metrics.HTTP_CONNECTED) should {
-                        it.shouldNotBeNull()
+                    it.stopSum shouldBe 1
+                    it.identity.tags shouldContainExactly mapOf(
+                        MetricTags.PATH to "/",
+                        MetricTags.METHOD to "GET",
+                        MetricTags.PROTOCOL to "http",
+                        MetricTags.IS_MULTIPLEX_PROTOCOL to false.toString(),
+                        MetricTags.REMOTE_ADDRESS to LocalHost.IP.value,
+                        MetricTags.REMOTE_HOST to LocalHost.HOSTNAME.value,
+                        MetricTags.REMOTE_PORT to expectedProfiledMockServer.httpPort().toString()
+                    )
+                }
+            }
+            eventually(2.toDuration(TimeUnit.SECONDS)) {
+                val report = profilerReporter.buildReportAndReset { metric, _ -> metric.name == Metrics.HTTP_CONNECTED }
+                logger.trace { "Report: $this" }
+                report.profiledCallReportWithNameEnding(Metrics.HTTP_CONNECTED) should {
+                    it.shouldNotBeNull()
 
-                        it.stopSum shouldBe 1
-                        it.identity.tags shouldContainExactly mapOf(
-                            MetricTags.PATH to "/",
-                            MetricTags.METHOD to "GET",
-                            MetricTags.PROTOCOL to "h2c",
-                            MetricTags.IS_MULTIPLEX_PROTOCOL to true.toString(),
-                            MetricTags.CHANNEL_CLASS to EPOLL_SOCKET_CHANNEL,
-                            MetricTags.REMOTE_ADDRESS to LocalHost.IP.value,
-                            MetricTags.REMOTE_HOST to LocalHost.HOSTNAME.value,
-                            MetricTags.REMOTE_PORT to expectedProfiledMockServer.httpPort().toString()
-                        )
-                    }
-                    profiledCallReportWithNameEnding(Metrics.HTTP_SUCCESS) should {
-                        it.shouldNotBeNull()
+                    it.stopSum shouldBe 1
+                    it.identity.tags shouldContainExactly mapOf(
+                        MetricTags.PATH to "/",
+                        MetricTags.METHOD to "GET",
+                        MetricTags.PROTOCOL to "h2c",
+                        MetricTags.IS_MULTIPLEX_PROTOCOL to true.toString(),
+                        MetricTags.CHANNEL_CLASS to EPOLL_SOCKET_CHANNEL,
+                        MetricTags.REMOTE_ADDRESS to LocalHost.IP.value,
+                        MetricTags.REMOTE_HOST to LocalHost.HOSTNAME.value,
+                        MetricTags.REMOTE_PORT to expectedProfiledMockServer.httpPort().toString()
+                    )
+                }
+            }
+            eventually(2.toDuration(TimeUnit.SECONDS)) {
+                val report = profilerReporter.buildReportAndReset { metric, _ -> metric.name == Metrics.HTTP_SUCCESS }
+                logger.trace { "Report: $this" }
+                report.profiledCallReportWithNameEnding(Metrics.HTTP_SUCCESS) should {
+                    it.shouldNotBeNull()
 
-                        it.stopSum shouldBe 1
-                        it.identity.tags shouldContainExactly mapOf(
-                            MetricTags.PATH to "/",
-                            MetricTags.METHOD to "GET",
-                            MetricTags.PROTOCOL to "h2c",
-                            MetricTags.IS_MULTIPLEX_PROTOCOL to true.toString(),
-                            MetricTags.CHANNEL_CLASS to EPOLL_SOCKET_CHANNEL,
-                            MetricTags.REMOTE_ADDRESS to LocalHost.IP.value,
-                            MetricTags.REMOTE_HOST to LocalHost.HOSTNAME.value,
-                            MetricTags.REMOTE_PORT to expectedProfiledMockServer.httpPort().toString(),
-                            MetricTags.RESPONSE_STATUS to "200"
-                        )
-                        it.latencyMax shouldBeGreaterThan firstRequestDelayMillis + lastRequestDelayMillis
-                    }
+                    it.stopSum shouldBe 1
+                    it.identity.tags shouldContainExactly mapOf(
+                        MetricTags.PATH to "/",
+                        MetricTags.METHOD to "GET",
+                        MetricTags.PROTOCOL to "h2c",
+                        MetricTags.IS_MULTIPLEX_PROTOCOL to true.toString(),
+                        MetricTags.CHANNEL_CLASS to EPOLL_SOCKET_CHANNEL,
+                        MetricTags.REMOTE_ADDRESS to LocalHost.IP.value,
+                        MetricTags.REMOTE_HOST to LocalHost.HOSTNAME.value,
+                        MetricTags.REMOTE_PORT to expectedProfiledMockServer.httpPort().toString(),
+                        MetricTags.RESPONSE_STATUS to "200"
+                    )
+                    it.latencyMax shouldBeGreaterThan firstRequestDelayMillis + lastRequestDelayMillis
                 }
             }
         } finally {
