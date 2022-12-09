@@ -38,9 +38,8 @@ import ru.fix.stdlib.ratelimiter.RateLimitedDispatcher
 import ru.fix.stdlib.socket.SocketChecker
 import java.io.IOException
 import java.net.ConnectException
-import kotlin.time.ExperimentalTime
-import kotlin.time.milliseconds
-import kotlin.time.seconds
+import java.util.concurrent.TimeUnit
+import kotlin.time.*
 
 @ExperimentalTime
 internal class HttpClientsTest {
@@ -54,7 +53,7 @@ internal class HttpClientsTest {
         val addressListProperty = AtomicProperty(listOf(mockServerAddress))
         val profiler = AggregatingProfiler()
         val reporter = profiler.createReporter()
-        val wholeRequestTimeoutProperty = AtomicProperty(1.seconds)
+        val wholeRequestTimeoutProperty = AtomicProperty(1.toDuration(TimeUnit.SECONDS))
         try {
             val clientName = "test-retrying-client"
             val rateLimitedDispatcher = RateLimitedDispatcher(
@@ -62,7 +61,7 @@ internal class HttpClientsTest {
                 ConfigurableRateLimiter("$clientName-rateLimiter", 10),
                 profiler,
                 DynamicProperty.of(20),
-                DynamicProperty.of(1.seconds.toLongMilliseconds())
+                DynamicProperty.of(1.toDuration(TimeUnit.SECONDS).inWholeMilliseconds)
             )
             HttpClients.builder()
                 .setClientName(clientName)
@@ -81,7 +80,7 @@ internal class HttpClientsTest {
                 //dynamic response timeouts
                 .withCustomResponseTimeouts()
                 .setResponseTimeouts(
-                    eachAttemptTimeout = 500.milliseconds.j,
+                    eachAttemptTimeout = 500.toDuration(TimeUnit.MILLISECONDS).j,
                     wholeRequestTimeoutProp = wholeRequestTimeoutProperty.map { it.j }
                 )
                 //retrofit support
@@ -90,7 +89,7 @@ internal class HttpClientsTest {
                 .enableNamedBlockingResponseReadingExecutor(
                     DynamicProperty.of(1),
                     profiler,
-                    DynamicProperty.of(2.seconds.j)
+                    DynamicProperty.of(2.toDuration(TimeUnit.SECONDS).j)
                 )
                 .buildRetrofit().use { closeableRetrofit ->
                     val testEntityApi = closeableRetrofit.retrofit.create<TestEntityCountingApi>()
@@ -98,7 +97,7 @@ internal class HttpClientsTest {
                     // Scenario 1. successful request to existing endpoint
                     mockServer.enqueue {
                         HttpResponse.of(TestEntity("return value").jsonStr)
-                            .delayedOn(250.milliseconds)
+                            .delayedOn(Duration.milliseconds(250))
                     }
                     val inputTestEntity1 = TestEntity("input value")
 
@@ -109,7 +108,7 @@ internal class HttpClientsTest {
                         it.shouldNotBeNull()
                         it.request.contentUtf8() shouldMatchJson inputTestEntity1.jsonStr
                     }
-                    eventually(500.milliseconds) {
+                    eventually(Duration.milliseconds(500)) {
                         val wholeRequestMetricName = "$clientName.${Metrics.WHOLE_RETRY_SESSION_PREFIX}.http"
                         val report = reporter.buildReportAndReset { metric, _ ->
                             metric.name == wholeRequestMetricName
@@ -128,11 +127,11 @@ internal class HttpClientsTest {
 
 
                     // Scenario 2. timeouted response
-                    wholeRequestTimeoutProperty.set(250.milliseconds)
+                    wholeRequestTimeoutProperty.set(Duration.milliseconds(250))
                     val inputTestEntity2 = TestEntity("return value 2")
                     mockServer.enqueue {
                         HttpResponse.of(inputTestEntity2.jsonStr)
-                            .delayedOn(400.milliseconds)
+                            .delayedOn(Duration.milliseconds(400))
                     }
 
                     val thrownExc = shouldThrowAny {
@@ -149,7 +148,7 @@ internal class HttpClientsTest {
                         it.shouldNotBeNull()
                         it.request.contentUtf8() shouldMatchJson inputTestEntity2.jsonStr
                     }
-                    eventually(500.milliseconds) {
+                    eventually(Duration.milliseconds(500)) {
                         val attemptErrorMetricName = "$clientName.${Metrics.EACH_RETRY_ATTEMPT_PREFIX}.http.error"
                         val report = reporter.buildReportAndReset { metric, _ ->
                             metric.name == attemptErrorMetricName && metric.hasTag("error_type", "response_timeout")
@@ -163,7 +162,7 @@ internal class HttpClientsTest {
                             )
                         }
                     }
-                    eventually(500.milliseconds) {
+                    eventually(Duration.milliseconds(500)) {
                         val wholeRequestMetricName = "$clientName.${Metrics.WHOLE_RETRY_SESSION_PREFIX}.http.error"
                         val report = reporter.buildReportAndReset { metric, _ ->
                             metric.name == wholeRequestMetricName && metric.hasTag("error_type", "response_timeout")
@@ -181,10 +180,10 @@ internal class HttpClientsTest {
 
 
                     // Scenario 3. load-balancing and retrying on 503/connect_error
-                    wholeRequestTimeoutProperty.set(3.seconds)
+                    wholeRequestTimeoutProperty.set(3.toDuration(TimeUnit.SECONDS))
                     addressListProperty.set(listOf(mockServerAddress, nonExistingServerAddress))
                     mockServer.enqueue {
-                        HttpResponse.of(HttpStatus.SERVICE_UNAVAILABLE).delayedOn(100.milliseconds)
+                        HttpResponse.of(HttpStatus.SERVICE_UNAVAILABLE).delayedOn(Duration.milliseconds(100))
                     }
                     mockServer.enqueue {
                         HttpResponse.of(TestEntity("return value 3").jsonStr)
@@ -203,7 +202,7 @@ internal class HttpClientsTest {
                             it.request.contentUtf8() shouldMatchJson inputTestEntity3.jsonStr
                         }
                     }
-                    eventually(500.milliseconds) {
+                    eventually(Duration.milliseconds(500)) {
                         val attemptErrorMetricName = "$clientName.${Metrics.EACH_RETRY_ATTEMPT_PREFIX}.http.error"
                         val report = reporter.buildReportAndReset { metric, _ ->
                             metric.name == attemptErrorMetricName && metric.hasTag("error_type", "connect_refused")
@@ -253,7 +252,7 @@ internal class HttpClientsTest {
         val addressProperty = AtomicProperty(mockServerAddress)
         val profiler = AggregatingProfiler()
         val reporter = profiler.createReporter()
-        val responseTimeoutProperty = AtomicProperty(1.seconds)
+        val responseTimeoutProperty = AtomicProperty(1.toDuration(TimeUnit.SECONDS))
         try {
             val clientName = "test-client"
             val rateLimitedDispatcher = RateLimitedDispatcher(
@@ -261,7 +260,7 @@ internal class HttpClientsTest {
                 ConfigurableRateLimiter("$clientName-rateLimiter", 10),
                 profiler,
                 DynamicProperty.of(20),
-                DynamicProperty.of(1.seconds.toLongMilliseconds())
+                DynamicProperty.of(1.toDuration(TimeUnit.SECONDS).inWholeMilliseconds)
             )
             HttpClients.builder()
                 .setClientName(clientName)
@@ -284,7 +283,7 @@ internal class HttpClientsTest {
                 .enableNamedBlockingResponseReadingExecutor(
                     DynamicProperty.of(1),
                     profiler,
-                    DynamicProperty.of(2.seconds.j)
+                    DynamicProperty.of(2.toDuration(TimeUnit.SECONDS).j)
                 )
                 .buildRetrofit().use { closeableRetrofit ->
                     val testEntityApi = closeableRetrofit.retrofit.create<TestEntityCountingApi>()
@@ -292,7 +291,7 @@ internal class HttpClientsTest {
                     // Scenario 1. successful request to existing endpoint
                     mockServer.enqueue {
                         HttpResponse.of(TestEntity("return value").jsonStr)
-                            .delayedOn(250.milliseconds)
+                            .delayedOn(Duration.milliseconds(250))
                     }
                     val inputTestEntity1 = TestEntity("input value")
 
@@ -303,7 +302,7 @@ internal class HttpClientsTest {
                         it.shouldNotBeNull()
                         it.request.contentUtf8() shouldMatchJson inputTestEntity1.jsonStr
                     }
-                    eventually(500.milliseconds) {
+                    eventually(Duration.milliseconds(500)) {
                         val requestMetricName = "$clientName.http"
                         val report = reporter.buildReportAndReset { metric, _ ->
                             metric.name == requestMetricName
@@ -322,11 +321,11 @@ internal class HttpClientsTest {
 
 
                     // Scenario 2. timeouted response
-                    responseTimeoutProperty.set(250.milliseconds)
+                    responseTimeoutProperty.set(Duration.milliseconds(250))
                     val inputTestEntity2 = TestEntity("return value 2")
                     mockServer.enqueue {
                         HttpResponse.of(inputTestEntity2.jsonStr)
-                            .delayedOn(400.milliseconds)
+                            .delayedOn(Duration.milliseconds(400))
                     }
 
                     val thrownExc2 = shouldThrowAny {
@@ -344,7 +343,7 @@ internal class HttpClientsTest {
                         it.shouldNotBeNull()
                         it.request.contentUtf8() shouldMatchJson inputTestEntity2.jsonStr
                     }
-                    eventually(500.milliseconds) {
+                    eventually(Duration.milliseconds(500)) {
                         val requestMetricName = "$clientName.http.error"
                         val report = reporter.buildReportAndReset { metric, _ ->
                             metric.name == requestMetricName
@@ -364,7 +363,7 @@ internal class HttpClientsTest {
 
                     // Scenario 3. change endpoint property to nonexisting server
                     addressProperty.set(nonExistingServerAddress)
-                    responseTimeoutProperty.set(1.seconds)
+                    responseTimeoutProperty.set(1.toDuration(TimeUnit.SECONDS))
                     val inputTestEntity3 = TestEntity("return value 3")
 
                     val thrownExc3 = shouldThrowAny {
@@ -379,7 +378,7 @@ internal class HttpClientsTest {
                             (cause.cause as UnprocessedRequestException).cause.shouldBeInstanceOf<ConnectException>()
                         }
                     }
-                    eventually(500.milliseconds) {
+                    eventually(Duration.milliseconds(500)) {
                         val requestMetricName = "$clientName.http.error"
                         val report = reporter.buildReportAndReset { metric, _ ->
                             metric.name == requestMetricName

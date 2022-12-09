@@ -35,9 +35,10 @@ import ru.fix.stdlib.ratelimiter.RateLimitedDispatcher
 import java.net.URI
 import java.time.Duration
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.TimeUnit
 import java.util.function.Supplier
 import kotlin.time.ExperimentalTime
-import kotlin.time.seconds
+import kotlin.time.toDuration
 
 private typealias MockServerStopper = suspend () -> Unit
 private typealias MockServerCreatorResult = Pair<URI, MockServerStopper>
@@ -277,7 +278,6 @@ internal class RateLimitingClientTest {
             createHttpClientWithProfiledCall: ClientWithProfiledCallCreator<ClientT>,
             emulateLoadFromClientToServer: ClientToServerLoadEmulator<ClientT>
         ) {
-            val targetPermitsPerSecDouble = targetPermitsPerSec.toDouble()
             val (mockServerUri, mockServerStopper) = mockServerCreator(requestsCount)
             try {
                 val profiler = AggregatingProfiler()
@@ -305,7 +305,7 @@ internal class RateLimitingClientTest {
                         emulateLoadFromClientToServer(requestsCount, client)
                         logger.info { "Requests completed. Building profiler report..." }
 
-                        eventually(1.seconds) {
+                        eventually(1.toDuration(TimeUnit.SECONDS)) {
                             val report = reporter.buildReportAndReset { metric, _ ->
                                 metric.name.endsWith(TEST_METRIC_NAME)
                             }
@@ -318,7 +318,7 @@ internal class RateLimitingClientTest {
                                 )
                             }
                         }
-                        eventually(1.seconds) {
+                        eventually(1.toDuration(TimeUnit.SECONDS)) {
                             val report = reporter.buildReportAndReset { metric, _ ->
                                 metric.name.endsWith(ACTIVE_ASYNC_OPERATIONS_METRIC)
                             }
@@ -354,7 +354,7 @@ internal class RateLimitingClientTest {
                         val profilerReporter = profiler.createReporter()
 
                         val requestFuture = client.execute()
-                        eventually(1.seconds) {
+                        eventually(1.toDuration(TimeUnit.SECONDS)) {
                             profilerReporter.buildReportAndReset() should { report ->
                                 report.indicatorWithNameEnding(ACTIVE_ASYNC_OPERATIONS_METRIC) should {
                                     it shouldBe 1
@@ -363,7 +363,7 @@ internal class RateLimitingClientTest {
                         }
                         responseFuture.complete(HttpResponse.of(HttpStatus.OK))
                         requestFuture.await()
-                        eventually(1.seconds) {
+                        eventually(1.toDuration(TimeUnit.SECONDS)) {
                             profilerReporter.buildReportAndReset() should { report ->
                                 report.indicatorWithNameEnding(ACTIVE_ASYNC_OPERATIONS_METRIC) should {
                                     it shouldBe 0

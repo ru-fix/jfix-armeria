@@ -23,9 +23,9 @@ import ru.fix.armeria.aggregating.profiler.ProfilerTestUtils.profiledCallReportW
 import ru.fix.armeria.commons.testing.ArmeriaMockServer
 import ru.fix.armeria.commons.testing.LocalHost
 import java.time.Duration
+import java.util.concurrent.TimeUnit
 import kotlin.time.ExperimentalTime
-import kotlin.time.milliseconds
-import kotlin.time.seconds
+import kotlin.time.toDuration
 
 @ExperimentalTime
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -59,7 +59,7 @@ internal class ProfiledConnectionPoolListenerTest {
         val profiler = AggregatingProfiler()
         val profilerReporter = profiler.createReporter()
         try {
-            val connectionTtlMs: Long = 1.seconds.toLongMilliseconds()
+            val connectionTtlMs: Long = 1.toDuration(TimeUnit.SECONDS).inWholeMilliseconds
             val client = WebClient
                 .builder(mockServer.uri(sessionProtocol))
                 .factory(
@@ -96,7 +96,7 @@ internal class ProfiledConnectionPoolListenerTest {
                         )
                     }
             }
-            eventually((connectionTtlMs / 2).milliseconds) {
+            eventually((connectionTtlMs / 2).toDuration(TimeUnit.MILLISECONDS)) {
                 val report = profilerReporter.buildReportAndReset { metric, _ ->
                     metric.name.endsWith(Metrics.ACTIVE_CHANNELS_COUNT)
                 }
@@ -108,14 +108,14 @@ internal class ProfiledConnectionPoolListenerTest {
              * - active_channels_count indicator decreased to 0
              * - connection lifetime metric is profiled
              */
-            eventually(2.seconds) {
+            eventually(2.toDuration(TimeUnit.SECONDS)) {
                 val report = profilerReporter.buildReportAndReset { metric, _ ->
                     metric.name.endsWith(Metrics.ACTIVE_CHANNELS_COUNT)
                 }
                 logger.trace { "$sessionProtocol Report: $report" }
                 report.indicatorWithNameEnding(Metrics.ACTIVE_CHANNELS_COUNT) shouldBe 0
             }
-            eventually(1.seconds) {
+            eventually(1.toDuration(TimeUnit.SECONDS)) {
                 val report = profilerReporter.buildReportAndReset { metric, _ ->
                     metric.name.endsWith(Metrics.CONNECTION_LIFETIME)
                 }

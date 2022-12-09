@@ -20,7 +20,7 @@ dependencies {
     testRuntimeOnly(Libs.junit_engine)
     testRuntimeOnly(Libs.corounit_engine)
     //  Kotest
-    testImplementation(Libs.kotest_assertions_core)
+    testImplementation(Libs.kotest_assertions_core_jvm)
     //  Test Logging
     testImplementation(Libs.log4j_kotlin)
     testRuntimeOnly(Libs.log4j_core)

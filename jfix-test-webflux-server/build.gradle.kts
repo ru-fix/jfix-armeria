@@ -41,8 +41,9 @@ docker {
     springBootApplication {
         baseImage.set("adoptopenjdk/openjdk11:alpine")
         maintainer.set("Timur Kasatkin <t.kasatkin.o@gmail.com>")
-        ports.set(listOf(8080))
-        jvmArgs.set(listOf("-Dserver.port=8080", "-Dreactor.netty.ioWorkerCount=1"))
+        val port = 8080
+        ports.set(listOf(port))
+        jvmArgs.set(listOf("-Dserver.port=$port", "-Dreactor.netty.ioWorkerCount=1"))
         images.set(
             listOf("${project.version}", "latest").map { "jfix-test-webflux-server:$it" }
         )
