@@ -6,6 +6,7 @@ val projects = listOf(
     "dynamic-request",
     "aggregating-profiler",
     "limiter",
+    "micrometer",
     "facade",
     "facade-all",
     "facade-all-retrofit"

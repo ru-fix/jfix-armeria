@@ -61,6 +61,15 @@ class ArmeriaMockServer(
         server.stop().await()
     }
 
+    suspend inline fun use(action: suspend (mockServer: ArmeriaMockServer) -> Unit) {
+        start()
+        try {
+            action(this)
+        } finally {
+            stop()
+        }
+    }
+
     fun launchStop(): Job = GlobalScope.launch { stop() }
 
     fun enqueue(httpResponseCreator: () -> HttpResponse) {
@@ -97,9 +106,11 @@ class ArmeriaMockServer(
             !protocol.isTls && serverHasSessionProtocol(SessionProtocol.HTTP) -> {
                 server.activeLocalPort(SessionProtocol.HTTP)
             }
+
             protocol.isTls && serverHasSessionProtocol(SessionProtocol.HTTPS) -> {
                 server.activeLocalPort(SessionProtocol.HTTPS)
             }
+
             else -> {
                 throw IllegalStateException("can't find the specified port")
             }
