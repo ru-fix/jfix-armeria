@@ -40,7 +40,7 @@ import java.util.concurrent.TimeUnit
 import kotlin.time.ExperimentalTime
 import kotlin.time.toDuration
 
-@OptIn(ExperimentalTime::class)
+@ExperimentalTime
 @Execution(ExecutionMode.SAME_THREAD)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class RemotePortTagCustomizerTest {

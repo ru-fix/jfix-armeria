@@ -20,21 +20,44 @@ object MeterIdPrefixFunctionCustomizers {
         metricTagName: String,
         limitConfig: MaxMetricTagValuesLimitConfig
     ) {
-        val onMaxReached = limitConfig.getOnMaxReachedMeterFilter(metricTagName)
+        val onMaxReached = limitConfig.getOnMaxReachedMeterFilter.invoke(metricNamePrefix, metricTagName)
         logger.info {
             "Setting restriction to $meterRegistry on meters prefixed by '$metricNamePrefix'. " +
                     "Max allowed number of '$metricTagName' tag values is ${limitConfig.maxCountOfUniqueTagValues}. " +
                     "onMaxReached = $onMaxReached"
         }
+        val maximumAllowableTags = MeterFilter.maximumAllowableTags(
+            metricNamePrefix,
+            metricTagName,
+            limitConfig.maxCountOfUniqueTagValues.toInt(),
+            onMaxReached
+        )
         meterRegistry.config()
             .meterFilter(
-                MeterFilter.maximumAllowableTags(
-                    metricNamePrefix,
-                    metricTagName,
-                    limitConfig.maxCountOfUniqueTagValues.toInt(),
-                    onMaxReached
-                )
+                maximumAllowableTags
             )
+    }
+
+    object HttpRequestPath {
+
+        @JvmStatic
+        @JvmOverloads
+        fun restrictMaxAmountOfPathTagValues(
+            meterRegistry: MeterRegistry,
+            metricNamePrefix: String = "",
+            limitConfig: MaxMetricTagValuesLimitConfig = MaxMetricTagValuesLimitConfig(
+                maxCountOfUniqueTagValues = 10
+            )
+        ): Unit = restrictMaxAmountOfTagValues(
+            meterRegistry,
+            metricNamePrefix,
+            metricTagName = MetricTags.PATH,
+            limitConfig
+        )
+
+        @JvmStatic
+        fun customizer(): MeterIdPrefixFunctionCustomizer =
+            HttpRequestPathTagCustomizer
     }
 
     object RemoteAddressInfo {
@@ -101,28 +124,6 @@ object MeterIdPrefixFunctionCustomizers {
         fun remotePortCustomizer(): MeterIdPrefixFunctionCustomizer =
             RemotePortTagCustomizer
 
-    }
-
-    object HttpRequestPath {
-
-        @JvmStatic
-        @JvmOverloads
-        fun restrictMaxAmountOfPathTagValues(
-            meterRegistry: MeterRegistry,
-            metricNamePrefix: String = "",
-            limitConfig: MaxMetricTagValuesLimitConfig = MaxMetricTagValuesLimitConfig(
-                maxCountOfUniqueTagValues = 10
-            )
-        ): Unit = restrictMaxAmountOfTagValues(
-            meterRegistry,
-            metricNamePrefix,
-            metricTagName = MetricTags.PATH,
-            limitConfig
-        )
-
-        @JvmStatic
-        fun customizer(): MeterIdPrefixFunctionCustomizer =
-            HttpRequestPathTagCustomizer
     }
 
 }

@@ -61,7 +61,7 @@ class ArmeriaMockServer(
         server.stop().await()
     }
 
-    suspend inline fun use(action: suspend (mockServer: ArmeriaMockServer) -> Unit) {
+    suspend inline fun use(action: (mockServer: ArmeriaMockServer) -> Unit) {
         start()
         try {
             action(this)
