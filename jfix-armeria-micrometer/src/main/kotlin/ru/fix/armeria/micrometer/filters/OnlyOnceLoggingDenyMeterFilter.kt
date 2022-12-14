@@ -7,6 +7,13 @@ import org.apache.logging.log4j.kotlin.logger
 import java.util.concurrent.atomic.AtomicBoolean
 import org.apache.logging.log4j.Level as Log4jLevel
 
+/**
+ * Extended version of [io.micrometer.core.instrument.internal.OnlyOnceLoggingDenyMeterFilter] with additional
+ * configuration options.
+ *
+ * @param logLevel level of logged message
+ * @param messageSupplier log message creating function
+ */
 class OnlyOnceLoggingDenyMeterFilter(
     private val logLevel: LogLevel = LogLevel.ERROR,
     private val messageSupplier: (Meter.Id) -> String

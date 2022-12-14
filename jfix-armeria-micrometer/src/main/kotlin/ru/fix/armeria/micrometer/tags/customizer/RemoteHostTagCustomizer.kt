@@ -8,7 +8,7 @@ import io.micrometer.core.instrument.Tag
 import ru.fix.armeria.commons.endpointInetSockedAddress
 import ru.fix.armeria.micrometer.tags.MetricTags
 
-object RemoteHostTagCustomizer : MeterIdPrefixFunctionCustomizer {
+internal object RemoteHostTagCustomizer : MeterIdPrefixFunctionCustomizer {
     override fun apply(
         registry: MeterRegistry,
         log: RequestOnlyLog,
