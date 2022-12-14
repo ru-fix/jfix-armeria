@@ -2,7 +2,7 @@ object Vers {
 
     // Gradle plugins
     const val gradle_release_plugin = "1.4.3"
-    const val dokka_plugin = "0.10.1"
+    const val dokka_plugin = "1.5.31"
     const val asciidoctor_plugin = "1.5.9.2"
     const val nexus_staging_plugin = "0.30.0"
     const val old_nexus_publish_plugin = "0.4.0"
@@ -42,7 +42,7 @@ object Libs {
 
     // Gradle plugins
     const val gradle_release_plugin = "ru.fix:gradle-release-plugin:${Vers.gradle_release_plugin}"
-    const val dokka_plugin = "org.jetbrains.dokka:dokka-gradle-plugin:${Vers.dokka_plugin}"
+    const val dokka_plugin_id = "org.jetbrains.dokka"
     const val asciidoctor_plugin_id = "org.asciidoctor.convert"
     const val asciidoctor_plugin = "org.asciidoctor:asciidoctor-gradle-plugin:${Vers.asciidoctor_plugin}"
     const val nexus_staging_plugin_id = "io.codearte.nexus-staging"
