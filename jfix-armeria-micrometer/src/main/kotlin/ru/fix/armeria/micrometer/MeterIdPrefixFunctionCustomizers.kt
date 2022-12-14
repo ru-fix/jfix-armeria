@@ -98,7 +98,7 @@ object MeterIdPrefixFunctionCustomizers {
         }
 
         @JvmStatic
-        fun remoteAddressInfoCustomizer(): MeterIdPrefixFunctionCustomizer =
+        fun remoteEndpointInfoCustomizer(): MeterIdPrefixFunctionCustomizer =
             MeterIdPrefixFunctionCustomizer { registry, log, meterIdPrefix ->
                 remoteAddressCustomizer()
                     .apply(
