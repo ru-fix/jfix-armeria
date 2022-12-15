@@ -2,12 +2,10 @@ import de.marcphilipp.gradle.nexus.NexusPublishExtension
 import org.asciidoctor.gradle.AsciidoctorTask
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat
 import org.gradle.api.tasks.testing.logging.TestLogEvent
-import org.jetbrains.dokka.gradle.DokkaTask
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import java.time.Duration
 import java.time.temporal.ChronoUnit
 import kotlin.properties.ReadOnlyProperty
-import kotlin.reflect.KProperty
 
 buildscript {
 
@@ -18,7 +16,6 @@ buildscript {
 
     dependencies {
         classpath(Libs.gradle_release_plugin)
-        classpath(Libs.dokka_plugin)
         classpath(Libs.asciidoctor_plugin)
         classpath(kotlin("gradle-plugin", version = Vers.kotlin))
     }
@@ -33,18 +30,18 @@ plugins {
     id(Libs.asciidoctor_plugin_id) version Vers.asciidoctor_plugin
     id(Libs.spring_boot_plugin_id) version Vers.spring_boot apply false
     id(Libs.docker_spring_boot_plugin_id) version Vers.docker_plugin apply false
+    id(Libs.dokka_plugin_id) version Vers.dokka_plugin
 }
 
 /**
  * Project configuration by properties and environment
  */
-fun envConfig() = object : ReadOnlyProperty<Any?, String?> {
-    override fun getValue(thisRef: Any?, property: KProperty<*>): String? =
-        if (ext.has(property.name)) {
-            ext[property.name] as? String
-        } else {
-            System.getenv(property.name)
-        }
+fun envConfig() = ReadOnlyProperty<Any?, String?> { _, property ->
+    if (ext.has(property.name)) {
+        ext[property.name] as? String
+    } else {
+        System.getenv(property.name)
+    }
 }
 
 val repositoryUser by envConfig()
@@ -74,7 +71,7 @@ subprojects {
         plugin("maven-publish")
         plugin("signing")
         plugin("java")
-        plugin("org.jetbrains.dokka")
+        plugin(Libs.dokka_plugin_id)
         plugin(Libs.old_nexus_publish_plugin_id)
     }
 
@@ -94,19 +91,18 @@ subprojects {
         from("src/main/kotlin")
     }
 
-    val dokkaTask by tasks.creating(DokkaTask::class) {
-        outputFormat = "javadoc"
-        outputDirectory = "$buildDir/dokka"
-
-        // TODO: wait dokka fix https://github.com/Kotlin/dokka/issues/294
-        enabled = false
-    }
-
-    val dokkaJar by tasks.creating(Jar::class) {
+    val dokkaJavadocJar by tasks.register<Jar>("dokkaJavadocJar") {
         archiveClassifier.set("javadoc")
 
-        from(dokkaTask.outputDirectory)
-        dependsOn(dokkaTask)
+        from(tasks.dokkaJavadoc.flatMap { it.outputDirectory })
+        dependsOn(tasks.dokkaJavadoc)
+    }
+
+    val dokkaHtmlJar by tasks.register<Jar>("dokkaHtmlJar") {
+        archiveClassifier.set("html-doc")
+
+        from(tasks.dokkaHtml.flatMap { it.outputDirectory })
+        dependsOn(tasks.dokkaHtml)
     }
 
     configure<NexusPublishExtension> {
@@ -151,7 +147,8 @@ subprojects {
                         from(components["java"])
 
                         artifact(sourcesJar)
-                        artifact(dokkaJar)
+                        artifact(dokkaJavadocJar)
+                        artifact(dokkaHtmlJar)
 
                         pom {
                             name.set("${project.group}:${project.name}")
