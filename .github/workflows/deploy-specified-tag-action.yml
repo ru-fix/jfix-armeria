@@ -1,4 +1,4 @@
-name: deploy-on-tag-push-action
+name: deploy-specified-tag-action
 on:
   workflow_dispatch:
     # Inputs the workflow accepts.
