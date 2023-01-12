@@ -7,7 +7,6 @@ import com.linecorp.armeria.client.metric.MetricCollectingClient
 import com.linecorp.armeria.common.HttpResponse
 import com.linecorp.armeria.common.HttpStatus
 import com.linecorp.armeria.common.SessionProtocol
-import com.linecorp.armeria.common.metric.MeterIdPrefixFunction
 import com.linecorp.armeria.server.ServerBuilder
 import com.linecorp.armeria.server.annotation.Get
 import io.kotest.assertions.assertSoftly
@@ -56,7 +55,7 @@ import kotlin.time.toDuration
 @ExperimentalTime
 @Execution(ExecutionMode.SAME_THREAD)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class MeterIdPrefixFunctionCustomizersTest {
+class MeterIdPrefixFunctionBuilderTest {
 
     companion object : Logging {
         private val clientFactory = ClientFactory.ofDefault()
@@ -110,23 +109,20 @@ class MeterIdPrefixFunctionCustomizersTest {
                 })
             }.use { mockServer ->
                 val metricsPrefix = "test.path.tag.limit"
-
                 val expectedUniquePathTagValuesCount = testPaths.size - 1
-                MeterIdPrefixFunctionCustomizers.HttpRequestPath.restrictMaxAmountOfPathTagValues(
-                    meterRegistry,
-                    metricsPrefix,
-                    limitConfig = MaxMetricTagValuesLimitConfig(
-                        maxCountOfUniqueTagValues = expectedUniquePathTagValuesCount.toByte()
-                    )
-                )
 
                 val client = WebClient
                     .builder(mockServer.httpUri())
                     .factory(clientFactory)
                     .decorator(
                         MetricCollectingClient.newDecorator(
-                            MeterIdPrefixFunction.ofDefault(metricsPrefix)
-                                .andThen(MeterIdPrefixFunctionCustomizers.HttpRequestPath.customizer())
+                            MeterIdPrefixFunctionBuilder
+                                .create(meterRegistry, metricsPrefix)
+                                .withPathTag(
+                                    limitConfig = MaxMetricTagValuesLimitConfig(
+                                        expectedUniquePathTagValuesCount.toByte()
+                                    )
+                                ).build()
                         )
                     )
                     .build()
@@ -189,28 +185,24 @@ class MeterIdPrefixFunctionCustomizersTest {
                  in order have a minimal restriction auto check
                  it has been decided to check that with maxCount of 0 no metrics will be passed through.
                  */
-                MeterIdPrefixFunctionCustomizers.RemoteAddressInfo.restrictMaxAmountOfAddressInfoTagsValues(
-                    meterRegistry,
-                    metricsPrefix,
-                    remoteAddressLimitConfig = createTestLimitConfig(
-                        remoteAddressTestCaseConfig,
-                        remoteAddressOnMaxReachedMeterFilterCalled
-                    ),
-                    remoteHostLimitConfig = createTestLimitConfig(
-                        remoteHostTestCaseConfig,
-                        remoteHostOnMaxReachedMeterFilterCalled
-                    ),
-                )
-
                 val client = WebClient
                     .builder(mockServer.httpUri())
                     .factory(clientFactory)
                     .decorator(
                         MetricCollectingClient.newDecorator(
-                            MeterIdPrefixFunction.ofDefault(metricsPrefix)
-                                .andThen(
-                                    MeterIdPrefixFunctionCustomizers.RemoteAddressInfo.remoteEndpointInfoCustomizer()
-                                )
+                            MeterIdPrefixFunctionBuilder
+                                .create(meterRegistry, metricsPrefix)
+                                .withRemoteAddressTag(
+                                    limitConfig = createTestLimitConfig(
+                                        remoteAddressTestCaseConfig,
+                                        remoteAddressOnMaxReachedMeterFilterCalled
+                                    )
+                                ).withRemoteHostTag(
+                                    limitConfig = createTestLimitConfig(
+                                        remoteHostTestCaseConfig,
+                                        remoteHostOnMaxReachedMeterFilterCalled
+                                    )
+                                ).build()
                         )
                     )
                     .build()
@@ -274,15 +266,7 @@ class MeterIdPrefixFunctionCustomizersTest {
             ArmeriaMockServer(serverBuilderCustomizer = serverBuilderCustomizer).use { mockServer ->
                 ArmeriaMockServer(serverBuilderCustomizer = serverBuilderCustomizer).use { mockServer2 ->
                     val metricsPrefix = "test.port.tag.limit"
-
                     val expectedUniquePortTagValuesCount = 1
-                    MeterIdPrefixFunctionCustomizers.RemoteAddressInfo.restrictMaxAmountOfAddressInfoTagsValues(
-                        meterRegistry,
-                        metricsPrefix,
-                        remotePortLimitConfig = MaxMetricTagValuesLimitConfig(
-                            maxCountOfUniqueTagValues = expectedUniquePortTagValuesCount.toByte()
-                        )
-                    )
 
                     val client = WebClient
                         .builder(
@@ -294,10 +278,13 @@ class MeterIdPrefixFunctionCustomizersTest {
                         ).factory(clientFactory)
                         .decorator(
                             MetricCollectingClient.newDecorator(
-                                MeterIdPrefixFunction.ofDefault(metricsPrefix)
-                                    .andThen(
-                                        MeterIdPrefixFunctionCustomizers.RemoteAddressInfo.remoteEndpointInfoCustomizer()
+                                MeterIdPrefixFunctionBuilder.create(meterRegistry, metricsPrefix)
+                                    .withRemotePortTag(
+                                        limitConfig = MaxMetricTagValuesLimitConfig(
+                                            maxCountOfUniqueTagValues = expectedUniquePortTagValuesCount.toByte()
+                                        )
                                     )
+                                    .build()
                             )
                         )
                         .build()

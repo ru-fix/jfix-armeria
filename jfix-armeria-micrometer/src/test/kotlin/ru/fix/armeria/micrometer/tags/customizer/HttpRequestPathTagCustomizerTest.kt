@@ -68,6 +68,8 @@ class HttpRequestPathTagCustomizerTest {
 
     @Test
     fun `WHEN query string contains query parameters THEN they removed from 'path' metric tag`(): Unit = runBlocking {
+        val metricsPrefix = "test.path.tag"
+        val testTagPrefix = "test_path_prefix"
         val path = "/pathWithQueryParams"
         ArmeriaMockServer {
             annotatedService(object : Any() {
@@ -81,15 +83,15 @@ class HttpRequestPathTagCustomizerTest {
                 }
             })
         }.use { mockServer ->
-            val metricsPrefix = "test.path.tag"
-
             val client = WebClient
                 .builder(mockServer.httpUri())
                 .factory(clientFactory)
                 .decorator(
                     MetricCollectingClient.newDecorator(
                         MeterIdPrefixFunction.ofDefault(metricsPrefix)
-                            .andThen(HttpRequestPathTagCustomizer)
+                            .andThen(HttpRequestPathTagCustomizer {
+                                "$testTagPrefix$it"
+                            })
                     )
                 )
                 .build()
@@ -106,7 +108,7 @@ class HttpRequestPathTagCustomizerTest {
                     it.id.name shouldBe totalDurationMetricName
                     it.id.tags shouldContain Tag.of(
                         MetricTags.PATH,
-                        path
+                        testTagPrefix + path
                     )
                 }
             }
