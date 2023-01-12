@@ -89,7 +89,7 @@ class HttpRequestPathTagCustomizerTest {
                 .decorator(
                     MetricCollectingClient.newDecorator(
                         MeterIdPrefixFunction.ofDefault(metricsPrefix)
-                            .andThen(HttpRequestPathTagCustomizer)
+                            .andThen(HttpRequestPathTagCustomizer())
                     )
                 )
                 .build()

@@ -16,7 +16,7 @@ fun interface PathMetricTagValueCustomizer {
 }
 
 internal class HttpRequestPathTagCustomizer(
-    private val customizeTagValue: PathMetricTagValueCustomizer
+    private val customizeTagValue: PathMetricTagValueCustomizer = PathMetricTagValueCustomizer.IDENTITY
 ) : MeterIdPrefixFunctionCustomizer {
     override fun apply(
         registry: MeterRegistry,
