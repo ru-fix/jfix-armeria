@@ -7,14 +7,29 @@ import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.Tag
 import ru.fix.armeria.micrometer.tags.MetricTags
 
-internal object HttpRequestPathTagCustomizer : MeterIdPrefixFunctionCustomizer {
+fun interface PathMetricTagValueCustomizer {
+    operator fun invoke(decodedPath: String): String
+
+    companion object {
+        val IDENTITY = PathMetricTagValueCustomizer { it }
+    }
+}
+
+internal class HttpRequestPathTagCustomizer(
+    private val customizeTagValue: PathMetricTagValueCustomizer
+) : MeterIdPrefixFunctionCustomizer {
     override fun apply(
         registry: MeterRegistry,
         log: RequestOnlyLog,
         meterIdPrefix: MeterIdPrefix
     ): MeterIdPrefix = meterIdPrefix.withTags(
         listOf(
-            Tag.of(MetricTags.PATH, log.context().decodedPath())
+            Tag.of(
+                MetricTags.PATH,
+                customizeTagValue(
+                    decodedPath = log.context().decodedPath()
+                )
+            )
         )
     )
 }

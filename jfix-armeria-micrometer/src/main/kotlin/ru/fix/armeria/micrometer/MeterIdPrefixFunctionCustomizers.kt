@@ -5,10 +5,7 @@ import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.config.MeterFilter
 import org.apache.logging.log4j.kotlin.logger
 import ru.fix.armeria.micrometer.tags.MetricTags
-import ru.fix.armeria.micrometer.tags.customizer.HttpRequestPathTagCustomizer
-import ru.fix.armeria.micrometer.tags.customizer.RemoteAddressTagCustomizer
-import ru.fix.armeria.micrometer.tags.customizer.RemoteHostTagCustomizer
-import ru.fix.armeria.micrometer.tags.customizer.RemotePortTagCustomizer
+import ru.fix.armeria.micrometer.tags.customizer.*
 
 /**
  * Additional [MeterIdPrefixFunctionCustomizer]s for Micrometer-Armeria integration.
@@ -29,9 +26,7 @@ object MeterIdPrefixFunctionCustomizers {
         fun restrictMaxAmountOfPathTagValues(
             meterRegistry: MeterRegistry,
             metricNamePrefix: String = "",
-            limitConfig: MaxMetricTagValuesLimitConfig = MaxMetricTagValuesLimitConfig(
-                maxCountOfUniqueTagValues = 10
-            )
+            limitConfig: MaxMetricTagValuesLimitConfig = DefaultTagsRestrictions.LimitConfigs.PATH
         ): Unit = restrictMaxAmountOfTagValues(
             meterRegistry,
             metricNamePrefix,
@@ -40,8 +35,9 @@ object MeterIdPrefixFunctionCustomizers {
         )
 
         @JvmStatic
-        fun customizer(): MeterIdPrefixFunctionCustomizer =
-            HttpRequestPathTagCustomizer
+        fun customizer(
+            pathTagValueCustomizer: PathMetricTagValueCustomizer = PathMetricTagValueCustomizer.IDENTITY
+        ): MeterIdPrefixFunctionCustomizer = HttpRequestPathTagCustomizer(pathTagValueCustomizer)
     }
 
     /**
@@ -52,6 +48,51 @@ object MeterIdPrefixFunctionCustomizers {
      */
     object RemoteAddressInfo {
 
+        @JvmStatic
+        @JvmOverloads
+        fun restrictMaxAmountOfRemoteAddressTagValues(
+            meterRegistry: MeterRegistry,
+            metricNamePrefix: String = "",
+            limitConfig: MaxMetricTagValuesLimitConfig = DefaultTagsRestrictions.LimitConfigs.REMOTE_ADDRESS,
+        ) {
+            restrictMaxAmountOfTagValues(
+                meterRegistry,
+                metricNamePrefix,
+                metricTagName = MetricTags.REMOTE_ADDRESS,
+                limitConfig
+            )
+        }
+
+        @JvmStatic
+        @JvmOverloads
+        fun restrictMaxAmountOfRemoteHostTagValues(
+            meterRegistry: MeterRegistry,
+            metricNamePrefix: String = "",
+            limitConfig: MaxMetricTagValuesLimitConfig = DefaultTagsRestrictions.LimitConfigs.REMOTE_HOST,
+        ) {
+            restrictMaxAmountOfTagValues(
+                meterRegistry,
+                metricNamePrefix,
+                metricTagName = MetricTags.REMOTE_HOST,
+                limitConfig
+            )
+        }
+
+        @JvmStatic
+        @JvmOverloads
+        fun restrictMaxAmountOfRemotePortTagValues(
+            meterRegistry: MeterRegistry,
+            metricNamePrefix: String = "",
+            limitConfig: MaxMetricTagValuesLimitConfig = DefaultTagsRestrictions.LimitConfigs.REMOTE_PORT,
+        ) {
+            restrictMaxAmountOfTagValues(
+                meterRegistry,
+                metricNamePrefix,
+                metricTagName = MetricTags.REMOTE_PORT,
+                limitConfig
+            )
+        }
+
         /**
          * Configure per tag upper bound restriction on max count of unique values of remote address info tags.
          */
@@ -60,32 +101,26 @@ object MeterIdPrefixFunctionCustomizers {
         fun restrictMaxAmountOfAddressInfoTagsValues(
             meterRegistry: MeterRegistry,
             metricNamePrefix: String = "",
-            remoteAddressLimitConfig: MaxMetricTagValuesLimitConfig = MaxMetricTagValuesLimitConfig(
-                maxCountOfUniqueTagValues = 10
-            ),
-            remoteHostLimitConfig: MaxMetricTagValuesLimitConfig = MaxMetricTagValuesLimitConfig(
-                maxCountOfUniqueTagValues = 10
-            ),
-            remotePortLimitConfig: MaxMetricTagValuesLimitConfig = MaxMetricTagValuesLimitConfig(
-                maxCountOfUniqueTagValues = 3
-            )
+            remoteAddressLimitConfig: MaxMetricTagValuesLimitConfig =
+                DefaultTagsRestrictions.LimitConfigs.REMOTE_ADDRESS,
+            remoteHostLimitConfig: MaxMetricTagValuesLimitConfig =
+                DefaultTagsRestrictions.LimitConfigs.REMOTE_HOST,
+            remotePortLimitConfig: MaxMetricTagValuesLimitConfig =
+                DefaultTagsRestrictions.LimitConfigs.REMOTE_PORT
         ) {
-            restrictMaxAmountOfTagValues(
+            restrictMaxAmountOfRemoteAddressTagValues(
                 meterRegistry,
                 metricNamePrefix,
-                metricTagName = MetricTags.REMOTE_ADDRESS,
                 remoteAddressLimitConfig
             )
-            restrictMaxAmountOfTagValues(
+            restrictMaxAmountOfRemoteHostTagValues(
                 meterRegistry,
                 metricNamePrefix,
-                metricTagName = MetricTags.REMOTE_HOST,
                 remoteHostLimitConfig
             )
-            restrictMaxAmountOfTagValues(
+            restrictMaxAmountOfRemotePortTagValues(
                 meterRegistry,
                 metricNamePrefix,
-                metricTagName = MetricTags.REMOTE_PORT,
                 remotePortLimitConfig
             )
         }
