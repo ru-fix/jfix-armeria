@@ -33,7 +33,7 @@ internal sealed class ProfiledError(
 
     class Http2ErrorOccurred(http2Error: Http2Error) : ProfiledError(
         typeMetricName = "http2_error",
-        additionalMetrics = *arrayOf("http2_error_type" to http2Error.name)
+        additionalMetrics = arrayOf("http2_error_type" to http2Error.name)
     )
 
     object ResponseTimeout : ProfiledError(typeMetricName = "response_timeout")

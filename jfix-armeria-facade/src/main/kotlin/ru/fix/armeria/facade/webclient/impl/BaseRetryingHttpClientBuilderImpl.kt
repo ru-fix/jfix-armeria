@@ -2,6 +2,7 @@ package ru.fix.armeria.facade.webclient.impl
 
 import com.linecorp.armeria.client.ClientOptionsBuilder
 import com.linecorp.armeria.client.HttpClient
+import com.linecorp.armeria.client.retry.RetryConfig
 import com.linecorp.armeria.client.retry.RetryRule
 import com.linecorp.armeria.client.retry.RetryingClient
 import ru.fix.aggregating.profiler.PrefixedProfiler
@@ -104,9 +105,12 @@ internal abstract class BaseRetryingHttpClientBuilderImpl<BuilderT : BaseRetryin
 
     protected fun ClientOptionsBuilder.withDefaultTimeoutsRetryingDecorator(): ClientOptionsBuilder =
         this.decorator(
-            RetryingClient.builder(baseRetryingBuilderState.retryRule)
-                .maxTotalAttempts(baseRetryingBuilderState.maxTotalAttempts)
-                .useRetryAfter(baseRetryingBuilderState.useRetryAfter)
+            RetryingClient
+                .builder(
+                    RetryConfig.builder(baseRetryingBuilderState.retryRule)
+                        .maxTotalAttempts(baseRetryingBuilderState.maxTotalAttempts)
+                        .build()
+                ).useRetryAfter(baseRetryingBuilderState.useRetryAfter)
                 .newDecorator()
         )
 

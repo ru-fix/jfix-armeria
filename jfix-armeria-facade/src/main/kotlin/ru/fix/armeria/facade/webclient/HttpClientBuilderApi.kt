@@ -16,6 +16,9 @@ import ru.fix.stdlib.ratelimiter.RateLimitedDispatcher
 import java.net.URI
 import java.time.Duration
 
+typealias ClientFactoryBuilderCustomizer = ClientFactoryBuilder.() -> ClientFactoryBuilder
+typealias ClientOptionsBuilderCustomizer = ClientOptionsBuilder.() -> ClientOptionsBuilder
+
 interface BaseHttpClientBuilder<out HttpClientBuilderT : BaseHttpClientBuilder<HttpClientBuilderT>> {
 
     /*
@@ -110,16 +113,55 @@ interface BaseHttpClientBuilder<out HttpClientBuilderT : BaseHttpClientBuilder<H
 
     /**
      * if argument [clientFactory] is passed, it will be used - otherwise new [ClientFactory] will be built when calling
-     * [buildArmeriaWebClient]
+     * [buildArmeriaWebClient].
+     *
+     * __ATTENTION__ - by calling [setClientFactory] calls to following method will have no effect:
+     * - [setIoThreadsCount]
+     * - [setConnectTimeout]
+     * - [setConnectionTtl]
+     * - [setUseHttp2Preface]
+     * - [enableConnectionsProfiling]
+     * - [customizeArmeriaClientFactoryBuilder]
+     * - [addClientFactoryBuilderCustomizer]
      */
     fun setClientFactory(clientFactory: ClientFactory): HttpClientBuilderT
 
+    /**
+     * @see addClientFactoryBuilderCustomizer
+     */
+    @Deprecated(
+        message = """
+             It wasn't clear that if method called several times than only the last customizer would be applied.
+             And there is a need to apply different customizers in different parts of code.
+             Thus it was decided to create new method allowing to add several customizers.
+             """,
+        replaceWith = ReplaceWith("addClientFactoryBuilderCustomizer(customizer)")
+    )
     fun customizeArmeriaClientFactoryBuilder(
-        customizer: ClientFactoryBuilder.() -> ClientFactoryBuilder
+        customizer: ClientFactoryBuilderCustomizer
     ): HttpClientBuilderT
 
+    fun addClientFactoryBuilderCustomizer(
+        customizer: ClientFactoryBuilderCustomizer
+    ): HttpClientBuilderT
+
+    /**
+     * @see addClientOptionsBuilderCustomizer
+     */
+    @Deprecated(
+        message = """
+             It wasn't clear that if method called several times than only the last customizer would be applied.
+             And there is a need to apply different customizers in different parts of code.
+             Thus it was decided to create new method allowing to add several customizers.
+             """,
+        replaceWith = ReplaceWith("addClientOptionsBuilderCustomizer(customizer)")
+    )
     fun customizeArmeriaClientOptionsBuilder(
-        customizer: ClientOptionsBuilder.() -> ClientOptionsBuilder
+        customizer: ClientOptionsBuilderCustomizer
+    ): HttpClientBuilderT
+
+    fun addClientOptionsBuilderCustomizer(
+        customizer: ClientOptionsBuilderCustomizer
     ): HttpClientBuilderT
 
 }
