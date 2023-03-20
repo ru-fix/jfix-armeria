@@ -18,7 +18,7 @@ object Vers {
     const val jfix_stdlib = "3.0.17"
 
     // Armeria and Retrofit
-    const val armeria = "1.13.2"
+    const val armeria = "1.20.3"
     const val retrofit = "2.9.0"
     const val jackson = "2.10.2"
 
@@ -28,10 +28,10 @@ object Vers {
     const val kotlin_logging = "2.0.3"
 
     // Spring
-    const val spring_boot = "2.7.6"
+    const val spring_boot = "2.7.9"
 
     // Testing
-    const val junit = "5.9.1"
+    const val junit = "5.9.2"
     const val kotest = "4.6.4"
     const val mockk = "1.12.2"
     const val corounit = "1.0.34"
