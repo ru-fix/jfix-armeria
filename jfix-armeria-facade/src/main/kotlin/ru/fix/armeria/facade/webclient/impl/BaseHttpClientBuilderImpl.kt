@@ -3,7 +3,6 @@ package ru.fix.armeria.facade.webclient.impl
 import com.linecorp.armeria.client.*
 import com.linecorp.armeria.client.endpoint.EndpointGroup
 import com.linecorp.armeria.client.endpoint.EndpointSelectionStrategy
-import com.linecorp.armeria.common.Flags
 import com.linecorp.armeria.common.SessionProtocol
 import com.linecorp.armeria.common.util.EventLoopGroups
 import org.apache.logging.log4j.kotlin.Logging
@@ -17,6 +16,8 @@ import ru.fix.armeria.facade.Either
 import ru.fix.armeria.facade.retrofit.RetrofitHttpClientBuilder
 import ru.fix.armeria.facade.retrofit.impl.RetrofitHttpClientBuilderImpl
 import ru.fix.armeria.facade.webclient.BaseHttpClientBuilder
+import ru.fix.armeria.facade.webclient.ClientFactoryBuilderCustomizer
+import ru.fix.armeria.facade.webclient.ClientOptionsBuilderCustomizer
 import ru.fix.armeria.facade.webclient.CloseableWebClient
 import ru.fix.armeria.limiter.RateLimitingHttpClient
 import ru.fix.dynamic.property.api.DynamicProperty
@@ -37,9 +38,9 @@ internal data class BaseHttpClientBuilderState(
     val ioThreadsCount: Int? = null,
     val clientFactory: ClientFactory? = null,
     val clientFactoryBuilder: () -> ClientFactoryBuilder = { ClientFactory.builder() },
-    val clientFactoryBuilderCustomizer: ClientFactoryBuilder.() -> ClientFactoryBuilder = { this },
+    val clientFactoryBuilderCustomizers: List<ClientFactoryBuilderCustomizer> = emptyList(),
     val clientOptionsBuilder: () -> ClientOptionsBuilder = { ClientOptions.builder() },
-    val clientOptionsBuilderCustomizer: ClientOptionsBuilder.() -> ClientOptionsBuilder = { this },
+    val clientOptionsBuilderCustomizers: List<ClientOptionsBuilderCustomizer> = emptyList(),
     val rateLimitingDecorator: Function<HttpClient, AutoCloseableHttpClient<*>>? = null
 )
 
@@ -47,12 +48,18 @@ internal abstract class BaseHttpClientBuilderImpl<out HttpClientBuilderT : BaseH
     protected val baseBuilderState: BaseHttpClientBuilderState
 ) : BaseHttpClientBuilder<HttpClientBuilderT> {
 
-    companion object : Logging
+    companion object : Logging {
+        private const val DEFAULT_IO_THREADS_COUNT = 1
+    }
 
     private lateinit var clientName: String
 
     internal val lazyClientName: () -> String
         get() = baseBuilderState.clientNameCreator
+
+    protected abstract fun copyOfThisBuilder(
+        baseBuilderStateBase: BaseHttpClientBuilderState = this.baseBuilderState
+    ): HttpClientBuilderT
 
     override fun setClientName(clientName: String) = copyOfThisBuilder(
         baseBuilderState.copy(clientNameCreator = { clientName })
@@ -164,15 +171,16 @@ internal abstract class BaseHttpClientBuilderImpl<out HttpClientBuilderT : BaseH
             var clientFactoryBuilder: ClientFactoryBuilder = baseBuilderState.clientFactoryBuilder()
             clientFactoryBuilder = clientFactoryBuilder.workerGroup(
                 EventLoopGroups.newEventLoopGroup(
-                    baseBuilderState.ioThreadsCount ?: Flags.numCommonWorkers(),
+                    baseBuilderState.ioThreadsCount ?: DEFAULT_IO_THREADS_COUNT,
                     "$clientName-eventloop"
                 ),
                 true
             )
-            val clientFactoryBuilderCustomizer = baseBuilderState.clientFactoryBuilderCustomizer
-            clientFactoryBuilder
-                .clientFactoryBuilderCustomizer()
-                .build()
+            var finalClientFactoryBuilder = clientFactoryBuilder
+            for (customizer in baseBuilderState.clientFactoryBuilderCustomizers) {
+                finalClientFactoryBuilder = finalClientFactoryBuilder.customizer()
+            }
+            finalClientFactoryBuilder.build()
         } else {
             // use passed ClientFactory
             baseBuilderState.clientFactory
@@ -184,34 +192,34 @@ internal abstract class BaseHttpClientBuilderImpl<out HttpClientBuilderT : BaseH
         val (enrichedClientOptionsBuilder, closeableDecorators) = clientOptionsBuilder.enrichClientOptionsBuilder()
         clientOptionsBuilder = enrichedClientOptionsBuilder
 
-        val clientOptionsBuilderCustomizer = baseBuilderState.clientOptionsBuilderCustomizer
-        val clientOptions = clientOptionsBuilder
-            .clientOptionsBuilderCustomizer()
-            .build()
+        var finalClientOptionsBuilder = clientOptionsBuilder
+        for (customizer in baseBuilderState.clientOptionsBuilderCustomizers) {
+            finalClientOptionsBuilder = finalClientOptionsBuilder.customizer()
+        }
+        val clientOptions = finalClientOptionsBuilder.build()
 
 
         return CloseableWebClient(
             webClientBuilder
                 .factory(clientFactory)
                 .options(clientOptions)
-                .build(),
-            AutoCloseable {
-                logger.info { """Closing Armeria http client "$clientName"...""" }
-                val closingTimeMillis = measureTimeMillis {
-                    for (closeableDecorator in closeableDecorators) {
-                        logger.info { "$clientName: closing decorator $closeableDecorator ..." }
-                        closeableDecorator.close()
-                    }
-                    logger.info { "$clientName: closing http client factory under the hood..." }
-                    clientFactory.close()
-                    endpointGroup?.leftOrNull?.let {
-                        logger.info { "$clientName: closing endpoint (group)..." }
-                        it.value.close()
-                    }
+                .build()
+        ) {
+            logger.info { """Closing Armeria http client "$clientName"...""" }
+            val closingTimeMillis = measureTimeMillis {
+                for (closeableDecorator in closeableDecorators) {
+                    logger.info { "$clientName: closing decorator $closeableDecorator ..." }
+                    closeableDecorator.close()
                 }
-                logger.info { """Armeria http client "$clientName" closed in $closingTimeMillis ms.""" }
+                logger.info { "$clientName: closing http client factory under the hood..." }
+                clientFactory.close()
+                endpointGroup?.leftOrNull?.let {
+                    logger.info { "$clientName: closing endpoint (group)..." }
+                    it.value.close()
+                }
             }
-        )
+            logger.info { """Armeria http client "$clientName" closed in $closingTimeMillis ms.""" }
+        }
     }
 
     protected open fun ClientOptionsBuilder.enrichClientOptionsBuilder()
@@ -242,25 +250,91 @@ internal abstract class BaseHttpClientBuilderImpl<out HttpClientBuilderT : BaseH
         baseBuilderState.copy(sessionProtocol = sessionProtocol)
     )
 
-    override fun setClientFactory(clientFactory: ClientFactory): HttpClientBuilderT = copyOfThisBuilder(
-        baseBuilderState.copy(clientFactory = clientFactory)
-    )
+    override fun setClientFactory(clientFactory: ClientFactory): HttpClientBuilderT {
+        if (baseBuilderState.clientFactoryBuilderCustomizers.isNotEmpty()) {
+            logger.warn {
+                """ClientFactory is set when there are some clientFactoryBuilderCustomizers specified:
+                    |- current builder state: $baseBuilderState
+                    |- provided clientFactory: $clientFactory
+                """.trimMargin()
+            }
+        }
+        return copyOfThisBuilder(
+            baseBuilderState.copy(clientFactory = clientFactory)
+        )
+    }
 
     override fun customizeArmeriaClientFactoryBuilder(
-        customizer: ClientFactoryBuilder.() -> ClientFactoryBuilder
-    ): HttpClientBuilderT = copyOfThisBuilder(
-        baseBuilderState.copy(clientFactoryBuilderCustomizer = customizer)
-    )
+        customizer: ClientFactoryBuilderCustomizer
+    ): HttpClientBuilderT {
+        logWarnIfClientFactoryIsSpecified(customizer)
+        logWarnIfThereAreSomeAlreadySpecifiedCustomizers(
+            customizerTypeName = ClientFactoryBuilder::class.java.simpleName,
+            currentListOfCustomizers = baseBuilderState.clientFactoryBuilderCustomizers,
+            providedCustomizer = customizer
+        )
+        return copyOfThisBuilder(
+            baseBuilderState.copy(clientFactoryBuilderCustomizers = listOf(customizer))
+        )
+    }
+
+    override fun addClientFactoryBuilderCustomizer(
+        customizer: ClientFactoryBuilderCustomizer
+    ): HttpClientBuilderT {
+        logWarnIfClientFactoryIsSpecified(customizer)
+        return copyOfThisBuilder(
+            baseBuilderState.copy(
+                clientFactoryBuilderCustomizers = baseBuilderState.clientFactoryBuilderCustomizers + customizer
+            )
+        )
+    }
 
     override fun customizeArmeriaClientOptionsBuilder(
-        customizer: ClientOptionsBuilder.() -> ClientOptionsBuilder
+        customizer: ClientOptionsBuilderCustomizer
+    ): HttpClientBuilderT {
+        logWarnIfThereAreSomeAlreadySpecifiedCustomizers(
+            customizerTypeName = ClientOptionsBuilder::class.java.simpleName,
+            currentListOfCustomizers = baseBuilderState.clientOptionsBuilderCustomizers,
+            providedCustomizer = customizer
+        )
+        return copyOfThisBuilder(
+            baseBuilderState.copy(clientOptionsBuilderCustomizers = listOf(customizer))
+        )
+    }
+
+    override fun addClientOptionsBuilderCustomizer(
+        customizer: ClientOptionsBuilderCustomizer
     ): HttpClientBuilderT = copyOfThisBuilder(
-        baseBuilderState.copy(clientOptionsBuilderCustomizer = customizer)
+        baseBuilderState.copy(
+            clientOptionsBuilderCustomizers = baseBuilderState.clientOptionsBuilderCustomizers + customizer
+        )
     )
 
-    protected abstract fun copyOfThisBuilder(
-        baseBuilderStateBase: BaseHttpClientBuilderState = this.baseBuilderState
-    ): HttpClientBuilderT
+    private fun logWarnIfClientFactoryIsSpecified(customizer: ClientFactoryBuilderCustomizer) {
+        if (baseBuilderState.clientFactory != null) {
+            logger.warn {
+                """ClientFactoryBuilder customizer will be ignored due to presence of clientFactory:
+                        |- current builder state: $baseBuilderState
+                        |- provided customizer: $customizer
+                    """.trimMargin()
+            }
+        }
+    }
+
+    private fun <CustomizerType> logWarnIfThereAreSomeAlreadySpecifiedCustomizers(
+        customizerTypeName: String,
+        currentListOfCustomizers: List<CustomizerType>,
+        providedCustomizer: CustomizerType
+    ) {
+        if (currentListOfCustomizers.isNotEmpty()) {
+            logger.warn {
+                """Previously set list of $customizerTypeName customizers is fully replaced by one customizer:
+                    |- current builder state: $baseBuilderState
+                    |- provided customizer $providedCustomizer
+                """.trimMargin()
+            }
+        }
+    }
 
     override fun toString(): String {
         return "HttpClientBuilder(clientName=${if (this::clientName.isInitialized) clientName else "not_used_client"})"

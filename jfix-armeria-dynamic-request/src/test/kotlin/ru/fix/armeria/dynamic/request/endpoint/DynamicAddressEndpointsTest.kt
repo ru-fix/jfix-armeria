@@ -2,7 +2,7 @@ package ru.fix.armeria.dynamic.request.endpoint
 
 import com.linecorp.armeria.client.UnprocessedRequestException
 import com.linecorp.armeria.client.WebClient
-import com.linecorp.armeria.client.endpoint.EmptyEndpointGroupException
+import com.linecorp.armeria.client.endpoint.EndpointSelectionTimeoutException
 import com.linecorp.armeria.common.HttpResponse
 import com.linecorp.armeria.common.HttpStatus
 import com.linecorp.armeria.common.SessionProtocol
@@ -115,7 +115,7 @@ internal class DynamicAddressEndpointsTest {
             val thrownException = shouldThrowExactly<UnprocessedRequestException> {
                 client.makeCountedRequest().await()
             }
-            thrownException.shouldHaveCauseInstanceOf<EmptyEndpointGroupException>()
+            thrownException.shouldHaveCauseInstanceOf<EndpointSelectionTimeoutException>()
         } finally {
             listOf(
                 mockServer1.launchStop(),
