@@ -268,6 +268,11 @@ internal abstract class BaseHttpClientBuilderImpl<out HttpClientBuilderT : BaseH
         customizer: ClientFactoryBuilderCustomizer
     ): HttpClientBuilderT {
         logWarnIfClientFactoryIsSpecified(customizer)
+        logWarnIfThereAreSomeAlreadySpecifiedCustomizers(
+            customizerTypeName = ClientFactoryBuilder::class.java.simpleName,
+            currentListOfCustomizers = baseBuilderState.clientFactoryBuilderCustomizers,
+            providedCustomizer = customizer
+        )
         return copyOfThisBuilder(
             baseBuilderState.copy(clientFactoryBuilderCustomizers = listOf(customizer))
         )
@@ -286,9 +291,16 @@ internal abstract class BaseHttpClientBuilderImpl<out HttpClientBuilderT : BaseH
 
     override fun customizeArmeriaClientOptionsBuilder(
         customizer: ClientOptionsBuilderCustomizer
-    ): HttpClientBuilderT = copyOfThisBuilder(
-        baseBuilderState.copy(clientOptionsBuilderCustomizers = listOf(customizer))
-    )
+    ): HttpClientBuilderT {
+        logWarnIfThereAreSomeAlreadySpecifiedCustomizers(
+            customizerTypeName = ClientOptionsBuilder::class.java.simpleName,
+            currentListOfCustomizers = baseBuilderState.clientOptionsBuilderCustomizers,
+            providedCustomizer = customizer
+        )
+        return copyOfThisBuilder(
+            baseBuilderState.copy(clientOptionsBuilderCustomizers = listOf(customizer))
+        )
+    }
 
     override fun addClientOptionsBuilderCustomizer(
         customizer: ClientOptionsBuilderCustomizer
@@ -305,6 +317,21 @@ internal abstract class BaseHttpClientBuilderImpl<out HttpClientBuilderT : BaseH
                         |- current builder state: $baseBuilderState
                         |- provided customizer: $customizer
                     """.trimMargin()
+            }
+        }
+    }
+
+    private fun <CustomizerType> logWarnIfThereAreSomeAlreadySpecifiedCustomizers(
+        customizerTypeName: String,
+        currentListOfCustomizers: List<CustomizerType>,
+        providedCustomizer: CustomizerType
+    ) {
+        if (currentListOfCustomizers.isNotEmpty()) {
+            logger.warn {
+                """Previously set list of $customizerTypeName customizers is fully replaced by one customizer:
+                    |- current builder state: $baseBuilderState
+                    |- provided customizer $providedCustomizer
+                """.trimMargin()
             }
         }
     }
