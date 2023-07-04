@@ -3,28 +3,59 @@ package ru.fix.armeria.micrometer
 import com.linecorp.armeria.common.metric.MeterIdPrefixFunction
 import com.linecorp.armeria.common.metric.MeterIdPrefixFunctionCustomizer
 import io.micrometer.core.instrument.MeterRegistry
+import ru.fix.armeria.micrometer.tags.customizer.HttpClientNameTagCustomizer
 import ru.fix.armeria.micrometer.tags.customizer.PathMetricTagValueCustomizer
 
 class MeterIdPrefixFunctionBuilder private constructor(
     private val meterRegistry: MeterRegistry,
     private val metricsNamesPrefix: String,
+    private var httpClientNameTagValue: String?,
     private val baseMeterIdPrefixFunctionCreator: (metricsNamesPrefix: String) -> MeterIdPrefixFunction
 ) {
 
     companion object {
 
+        private val DEFAULT_METER_ID_PREFIX_FUNCTION_CREATOR: (metricsNamesPrefix: String) -> MeterIdPrefixFunction =
+            MeterIdPrefixFunction::ofDefault
+
         @JvmStatic
         @JvmOverloads
+        @Deprecated(
+            message = "It is better to specify client name in separate metric tag.",
+            replaceWith = ReplaceWith(
+                """createWithClientNameTag(meterRegistry, "specify_client_name_here")"""
+            )
+        )
         fun create(
             meterRegistry: MeterRegistry,
             metricsNamesPrefix: String = "",
-            baseMeterIdPrefixFunctionCreator: (metricsNamesPrefix: String) -> MeterIdPrefixFunction = {
-                MeterIdPrefixFunction.ofDefault(metricsNamesPrefix)
-            }
+            baseMeterIdPrefixFunctionCreator: (metricsNamesPrefix: String) -> MeterIdPrefixFunction =
+                DEFAULT_METER_ID_PREFIX_FUNCTION_CREATOR
         ): MeterIdPrefixFunctionBuilder = MeterIdPrefixFunctionBuilder(
-            meterRegistry, metricsNamesPrefix, baseMeterIdPrefixFunctionCreator
+            meterRegistry = meterRegistry,
+            metricsNamesPrefix = metricsNamesPrefix,
+            httpClientNameTagValue = null,
+            baseMeterIdPrefixFunctionCreator = baseMeterIdPrefixFunctionCreator
+        )
+
+        @JvmStatic
+        @JvmOverloads
+        fun createWithClientNameTag(
+            meterRegistry: MeterRegistry,
+            httpClientName: String,
+            metricsNamesPrefix: String = "http_client",
+            baseMeterIdPrefixFunctionCreator: (metricsNamesPrefix: String) -> MeterIdPrefixFunction =
+                DEFAULT_METER_ID_PREFIX_FUNCTION_CREATOR
+        ): MeterIdPrefixFunctionBuilder = MeterIdPrefixFunctionBuilder(
+            meterRegistry = meterRegistry,
+            metricsNamesPrefix = metricsNamesPrefix,
+            httpClientNameTagValue = httpClientName,
+            baseMeterIdPrefixFunctionCreator = baseMeterIdPrefixFunctionCreator
         )
     }
+
+    private var httpClientNameTagLimitConfig: MaxMetricTagValuesLimitConfig =
+        DefaultTagsRestrictions.LimitConfigs.HTTP_CLIENT_NAME
 
     private var pathTagEnabled: Boolean = false
     private var pathTagLimitConfig: MaxMetricTagValuesLimitConfig =
@@ -43,6 +74,24 @@ class MeterIdPrefixFunctionBuilder private constructor(
     private var remotePortTagLimitConfig: MaxMetricTagValuesLimitConfig =
         DefaultTagsRestrictions.LimitConfigs.REMOTE_PORT
 
+    fun withHttpClientNameTag(
+        httpClientName: String,
+        limitConfig: MaxMetricTagValuesLimitConfig = DefaultTagsRestrictions.LimitConfigs.HTTP_CLIENT_NAME,
+    ): MeterIdPrefixFunctionBuilder = apply {
+        this.httpClientNameTagValue = httpClientName
+        httpClientNameTagLimitConfig = limitConfig
+    }
+
+    fun withHttpClientNameTagLimitConfig(
+        limitConfig: MaxMetricTagValuesLimitConfig,
+    ): MeterIdPrefixFunctionBuilder {
+        val tagValue = httpClientNameTagValue
+        requireNotNull(tagValue) { "http client name tag value is not specified" }
+        return withHttpClientNameTag(
+            httpClientName = tagValue,
+            limitConfig = limitConfig
+        )
+    }
 
     fun withPathTag(
         limitConfig: MaxMetricTagValuesLimitConfig = DefaultTagsRestrictions.LimitConfigs.PATH,
@@ -76,6 +125,13 @@ class MeterIdPrefixFunctionBuilder private constructor(
 
     fun build(): MeterIdPrefixFunction {
         return baseMeterIdPrefixFunctionCreator(metricsNamesPrefix)
+            .enrichWithTagIfEnabled(
+                httpClientNameTagValue != null,
+                httpClientNameTagLimitConfig,
+                MeterIdPrefixFunctionCustomizers::restrictMaxAmountOfHttpClientNameTagValues
+            ) {
+                HttpClientNameTagCustomizer(httpClientNameTagValue!!)
+            }
             .enrichWithTagIfEnabled(
                 pathTagEnabled,
                 pathTagLimitConfig,

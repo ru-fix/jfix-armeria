@@ -13,6 +13,19 @@ import ru.fix.armeria.micrometer.tags.customizer.*
  */
 object MeterIdPrefixFunctionCustomizers {
 
+    @JvmStatic
+    @JvmOverloads
+    fun restrictMaxAmountOfHttpClientNameTagValues(
+        meterRegistry: MeterRegistry,
+        metricNamePrefix: String = "",
+        limitConfig: MaxMetricTagValuesLimitConfig = DefaultTagsRestrictions.LimitConfigs.HTTP_CLIENT_NAME
+    ): Unit = restrictMaxAmountOfTagValues(
+        meterRegistry,
+        metricNamePrefix,
+        metricTagName = MetricTags.HTTP_CLIENT_NAME,
+        limitConfig
+    )
+
     /**
      * Http request [MetricTags.PATH] tag related functions.
      */
@@ -175,7 +188,7 @@ object MeterIdPrefixFunctionCustomizers {
         metricTagName: String,
         limitConfig: MaxMetricTagValuesLimitConfig
     ) {
-        val onMaxReached = limitConfig.getOnMaxReachedMeterFilter.invoke(metricNamePrefix, metricTagName)
+        val onMaxReached = limitConfig.getOnMaxReachedMeterFilter(metricNamePrefix, metricTagName)
         logger.info {
             "Setting restriction to $meterRegistry on meters prefixed by '$metricNamePrefix'. " +
                     "Max allowed number of '$metricTagName' tag values is ${limitConfig.maxCountOfUniqueTagValues}. " +
