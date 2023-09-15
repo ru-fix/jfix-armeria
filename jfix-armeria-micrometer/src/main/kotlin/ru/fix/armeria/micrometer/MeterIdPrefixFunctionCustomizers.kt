@@ -4,6 +4,7 @@ import com.linecorp.armeria.common.metric.MeterIdPrefixFunctionCustomizer
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.config.MeterFilter
 import org.apache.logging.log4j.kotlin.logger
+import ru.fix.armeria.micrometer.filters.applyForMetricsWithClientNameTag
 import ru.fix.armeria.micrometer.tags.MetricTags
 import ru.fix.armeria.micrometer.tags.customizer.*
 
@@ -18,12 +19,14 @@ object MeterIdPrefixFunctionCustomizers {
     fun restrictMaxAmountOfHttpClientNameTagValues(
         meterRegistry: MeterRegistry,
         metricNamePrefix: String = "",
-        limitConfig: MaxMetricTagValuesLimitConfig = DefaultTagsRestrictions.LimitConfigs.HTTP_CLIENT_NAME
+        limitConfig: MaxMetricTagValuesLimitConfig = DefaultTagsRestrictions.LimitConfigs.HTTP_CLIENT_NAME,
+        httpClientNameTagValue: String? = null,
     ): Unit = restrictMaxAmountOfTagValues(
         meterRegistry,
         metricNamePrefix,
         metricTagName = MetricTags.HTTP_CLIENT_NAME,
-        limitConfig
+        limitConfig,
+        httpClientNameTagValue,
     )
 
     /**
@@ -39,12 +42,14 @@ object MeterIdPrefixFunctionCustomizers {
         fun restrictMaxAmountOfPathTagValues(
             meterRegistry: MeterRegistry,
             metricNamePrefix: String = "",
-            limitConfig: MaxMetricTagValuesLimitConfig = DefaultTagsRestrictions.LimitConfigs.PATH
+            limitConfig: MaxMetricTagValuesLimitConfig = DefaultTagsRestrictions.LimitConfigs.PATH,
+            httpClientNameTagValue: String? = null,
         ): Unit = restrictMaxAmountOfTagValues(
             meterRegistry,
             metricNamePrefix,
             metricTagName = MetricTags.PATH,
-            limitConfig
+            limitConfig,
+            httpClientNameTagValue,
         )
 
         @JvmStatic
@@ -67,12 +72,14 @@ object MeterIdPrefixFunctionCustomizers {
             meterRegistry: MeterRegistry,
             metricNamePrefix: String = "",
             limitConfig: MaxMetricTagValuesLimitConfig = DefaultTagsRestrictions.LimitConfigs.REMOTE_ADDRESS,
+            httpClientNameTagValue: String? = null,
         ) {
             restrictMaxAmountOfTagValues(
                 meterRegistry,
                 metricNamePrefix,
                 metricTagName = MetricTags.REMOTE_ADDRESS,
-                limitConfig
+                limitConfig,
+                httpClientNameTagValue,
             )
         }
 
@@ -82,12 +89,14 @@ object MeterIdPrefixFunctionCustomizers {
             meterRegistry: MeterRegistry,
             metricNamePrefix: String = "",
             limitConfig: MaxMetricTagValuesLimitConfig = DefaultTagsRestrictions.LimitConfigs.REMOTE_HOST,
+            httpClientNameTagValue: String? = null,
         ) {
             restrictMaxAmountOfTagValues(
                 meterRegistry,
                 metricNamePrefix,
                 metricTagName = MetricTags.REMOTE_HOST,
-                limitConfig
+                limitConfig,
+                httpClientNameTagValue,
             )
         }
 
@@ -97,12 +106,14 @@ object MeterIdPrefixFunctionCustomizers {
             meterRegistry: MeterRegistry,
             metricNamePrefix: String = "",
             limitConfig: MaxMetricTagValuesLimitConfig = DefaultTagsRestrictions.LimitConfigs.REMOTE_PORT,
+            httpClientNameTagValue: String? = null,
         ) {
             restrictMaxAmountOfTagValues(
                 meterRegistry,
                 metricNamePrefix,
                 metricTagName = MetricTags.REMOTE_PORT,
-                limitConfig
+                limitConfig,
+                httpClientNameTagValue,
             )
         }
 
@@ -186,22 +197,31 @@ object MeterIdPrefixFunctionCustomizers {
         meterRegistry: MeterRegistry,
         metricNamePrefix: String,
         metricTagName: String,
-        limitConfig: MaxMetricTagValuesLimitConfig
+        limitConfig: MaxMetricTagValuesLimitConfig,
+        httpClientNameTagValue: String?
     ) {
         val onMaxReached = limitConfig.getOnMaxReachedMeterFilter(metricNamePrefix, metricTagName)
         logger.info {
-            "Setting restriction to $meterRegistry on meters prefixed by '$metricNamePrefix'. " +
-                    "Max allowed number of '$metricTagName' tag values is ${limitConfig.maxCountOfUniqueTagValues}. " +
+            "Setting restriction to $meterRegistry on meters prefixed by '$metricNamePrefix'" +
+                    (httpClientNameTagValue?.let { " and with tag ${MetricTags.HTTP_CLIENT_NAME}='$it'" } ?: "") +
+                    ". Max allowed number of '$metricTagName' tag values is ${limitConfig.maxCountOfUniqueTagValues}. " +
                     "onMaxReached = $onMaxReached"
         }
-        val maximumAllowableTags = MeterFilter.maximumAllowableTags(
+        val maximumAllowableTagsFilter = MeterFilter.maximumAllowableTags(
             metricNamePrefix,
             metricTagName,
             limitConfig.maxCountOfUniqueTagValues.toInt(),
             onMaxReached
         )
         meterRegistry.config()
-            .meterFilter(maximumAllowableTags)
+            .meterFilter(
+                if (httpClientNameTagValue != null) {
+                    maximumAllowableTagsFilter
+                        .applyForMetricsWithClientNameTag(httpClientNameTagValue)
+                } else {
+                    maximumAllowableTagsFilter
+                }
+            )
     }
 
 }

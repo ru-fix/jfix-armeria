@@ -1,6 +1,6 @@
 package ru.fix.armeria.micrometer.tags
 
-internal object MetricTags {
+object MetricTags {
     const val HTTP_CLIENT_NAME = "armeria_client_name"
     const val PATH = "path"
     const val REMOTE_ADDRESS = "remote_address"
